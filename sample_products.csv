@@ -1,0 +1,5 @@
+sku,ean,name,net_sales_price,sales_price_with_tax,b2b_price,retail_price,stock_quantity
+LM-SAPPHIRE-100,0123456789012,L'Essence de Sapphire,237.5,285.0,195.0,285.0,150
+LX-AZU-990,0745231,Azure Essence Eau de Parfum,100.0,120.0,85.0,135.0,4520
+LX-VEL-421,0789124,Midnight Velvet Intense,154.0,185.0,142.0,199.0,12
+LX-NOR-112,0992384,Nordic Mist Cologne,62.5,75.0,52.0,89.0,812

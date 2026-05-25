@@ -1,0 +1,148 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  SELLER
+  CUSTOMER
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  name               String
+  email              String    @unique
+  password_hash      String
+  role               Role      @default(CUSTOMER)
+  reset_token        String?
+  reset_token_expiry DateTime?
+  created_at         DateTime  @default(now())
+  reviews            Review[]
+  orders             Order[]
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model Order {
+  id                 String      @id @default(uuid())
+  stripe_session_id  String      @unique
+  stripe_payment_id  String?
+  user_id            String?
+  user               User?       @relation(fields: [user_id], references: [id])
+  customer_email     String?
+  customer_name      String?
+  status             OrderStatus @default(PENDING)
+  total_amount       Decimal     @db.Decimal(10, 2)
+  currency           String      @default("eur")
+  shipping_amount    Decimal     @default(0) @db.Decimal(10, 2)
+  items              OrderItem[]
+  created_at         DateTime    @default(now())
+  updated_at         DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  order_id    String
+  order       Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  product_id  String?
+  sku         String?
+  name        String
+  image_url   String?
+  quantity    Int
+  unit_price  Decimal  @db.Decimal(10, 2)
+  total_price Decimal  @db.Decimal(10, 2)
+}
+
+model Category {
+  id              String            @id @default(uuid())
+  name            Json
+  slug            String            @unique
+  description     String?           @db.Text
+  image_url       String?
+  parent_id       String?
+  parent          Category?         @relation("SubCategories", fields: [parent_id], references: [id])
+  children        Category[]        @relation("SubCategories")
+  products        Product[]
+  productCategories ProductCategory[]
+  created_at      DateTime          @default(now())
+}
+
+model Product {
+  id                   String            @id @default(uuid())
+  category_id          String
+  category             Category          @relation(fields: [category_id], references: [id])
+  productCategories    ProductCategory[]
+  sku                  String            @unique
+  ean                  String?
+  image_url            String?
+  stock_quantity       Int               @default(0)
+  translations         Json
+  description          Json?
+  short_description    Json?             // Short description shown near price
+  tags                 Json?
+  net_sales_price      Decimal           @db.Decimal(10, 2)
+  sales_price_with_tax Decimal           @db.Decimal(10, 2)
+  b2b_price            Decimal           @db.Decimal(10, 2)
+  retail_price         Decimal?          @db.Decimal(10, 2)
+  attributes           Json?
+  scent_notes          Json?             // { top: [], heart: [], base: [] }
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
+  reviews              Review[]
+}
+
+model ProductCategory {
+  product_id  String
+  category_id String
+  product     Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@id([product_id, category_id])
+}
+
+model Review {
+  id               String   @id @default(uuid())
+  product_id       String
+  product          Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  user_id          String?
+  user             User?    @relation(fields: [user_id], references: [id])
+  author_name      String
+  author_email     String?
+  rating           Int      // 1-5
+  title            String?
+  body             String   @db.Text
+  verified_purchase Boolean @default(false)
+  is_approved      Boolean  @default(true)
+  created_at       DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value Json
+}
+
+model Coupon {
+  id                 String    @id @default(uuid())
+  code               String    @unique
+  discount_type      String    // 'percentage' or 'fixed_amount'
+  discount_value     Decimal   @db.Decimal(10, 2)
+  min_order_subtotal Decimal?  @db.Decimal(10, 2)
+  expires_at         DateTime?
+  active             Boolean   @default(true)
+  created_at         DateTime  @default(now())
+}

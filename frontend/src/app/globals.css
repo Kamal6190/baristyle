@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  /* Disabled dark mode to maintain luxury brand theme */
+}
+
+body {
+  background: #FAF9F6;
+  color: #1c1917; /* stone-900 */
+  font-family: Arial, Helvetica, sans-serif;
+}

@@ -1,0 +1,25 @@
+# BS Baristore - robots.txt
+# Allow Google and all search engines to index public pages
+
+User-agent: *
+Allow: /
+Allow: /shop
+Allow: /shop/
+Allow: /wholesale
+
+# Block private / non-indexable pages
+Disallow: /admin
+Disallow: /admin/
+Disallow: /login
+Disallow: /register
+Disallow: /checkout
+Disallow: /checkout/
+Disallow: /success
+Disallow: /profile
+Disallow: /reset-password
+Disallow: /api/
+Disallow: /_next/
+Allow: /uploads/
+
+# Sitemap location
+Sitemap: https://baristyle.de/sitemap.xml

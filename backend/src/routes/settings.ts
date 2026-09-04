@@ -6,6 +6,10 @@ const router = Router();
 
 // Default configurations
 const DEFAULT_SETTINGS: Record<string, any> = {
+  buy2get1_config: {
+    active: true,
+    category_ids: []
+  },
   vat_config: {
     rate: 19,
     type: 'inclusive' // 'inclusive' or 'exclusive'
@@ -34,7 +38,8 @@ const DEFAULT_SETTINGS: Record<string, any> = {
     }
   ],
   b2b_config: {
-    minimum_order_amount: 2500
+    minimum_order_amount: 2500,
+    default_b2b_min_qty: 1
   },
   hero_banners: [
     {
@@ -149,6 +154,83 @@ router.get('/', async (req: Request, res: Response) => {
     });
 
     res.json(mergedSettings);
+  } catch (error) {
+    res.status(500).json({ message: 'Internal server error', error });
+  }
+});
+
+// POST to clean up unused uploaded image files
+router.post('/cleanup-unused-images', optionalAuth, requireRole(['SUPER_ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const uploadsDir = process.env.UPLOAD_DIR 
+      ? path.resolve(process.env.UPLOAD_DIR) 
+      : path.resolve(__dirname, '..', '..', 'uploads');
+
+    if (!fs.existsSync(uploadsDir)) {
+      return res.status(200).json({ message: 'Uploads directory not found', deletedCount: 0, freedSpaceMB: 0 });
+    }
+
+    const filesOnDisk = fs.readdirSync(uploadsDir);
+    const products = await prisma.product.findMany({
+      select: { image_url: true, attributes: true, description: true }
+    });
+    const categories = await prisma.category.findMany({ select: { image_url: true } });
+    const settings = await prisma.setting.findMany();
+
+    const usedFiles = new Set<string>();
+
+    function markUsed(url: any) {
+      if (!url || typeof url !== 'string') return;
+      const clean = url.split('?')[0].split('#')[0];
+      const filename = path.basename(clean);
+      usedFiles.add(filename);
+    }
+
+    products.forEach((p: any) => {
+      markUsed(p.image_url);
+      if (p.attributes && Array.isArray((p.attributes as any).additional_images)) {
+        (p.attributes as any).additional_images.forEach((img: any) => markUsed(img));
+      }
+      if (p.description) {
+        const str = JSON.stringify(p.description);
+        const matches = str.match(/uploads\/[a-zA-Z0-9._-]+/g);
+        if (matches) matches.forEach((m: any) => markUsed(m));
+      }
+    });
+
+    categories.forEach((c: any) => markUsed(c.image_url));
+
+    settings.forEach((s: any) => {
+      const str = JSON.stringify(s.value);
+      const matches = str.match(/uploads\/[a-zA-Z0-9._-]+/g);
+      if (matches) matches.forEach((m: any) => markUsed(m));
+    });
+
+    const filesToDelete = filesOnDisk.filter((f: string) => !usedFiles.has(f));
+    let deletedCount = 0;
+    let totalBytesFreed = 0;
+
+    for (const f of filesToDelete) {
+      const filePath = path.join(uploadsDir, f);
+      try {
+        const stat = fs.statSync(filePath);
+        totalBytesFreed += stat.size;
+        fs.unlinkSync(filePath);
+        deletedCount++;
+      } catch (err: any) {
+        console.error(`Failed to delete unused file ${f}:`, err.message);
+      }
+    }
+
+    const freedMB = (totalBytesFreed / (1024 * 1024)).toFixed(2);
+    res.json({
+      success: true,
+      message: `Cleaned ${deletedCount} unused images, freed ${freedMB} MB.`,
+      deletedCount,
+      freedSpaceMB: freedMB
+    });
   } catch (error) {
     res.status(500).json({ message: 'Internal server error', error });
   }

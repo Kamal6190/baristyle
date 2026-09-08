@@ -1,5 +1,5 @@
 // frontend/src/utils/invoice.ts
-// Official Commercial Invoice Generator for BS Baristore / BariStyle
+// Official Commercial Invoice Generator for BS Baristore
 
 export interface InvoiceItem {
   name: string;
@@ -457,7 +457,7 @@ export function buildInvoiceHtml(order: InvoiceOrder, requestedLang?: string): s
               <span class="logo-badge">BS</span>
               <span class="logo-text">Baristore</span>
             </div>
-            <p class="subtitle">BariStyle Wholesale & Retail</p>
+            <p class="subtitle">Universal Wholesale & Retail</p>
           </div>
           <div class="invoice-title">
             <div class="invoice-badge">${t.invoice}</div>
@@ -480,11 +480,11 @@ export function buildInvoiceHtml(order: InvoiceOrder, requestedLang?: string): s
           <div class="info-block" style="${t.alignLeftStyle}">
             <h3>${t.issuedBy}</h3>
             <p>
-              <strong>BariStyle / Barigroup</strong><br/>
+              <strong>BS Baristore / barigroup.net</strong><br/>
               ${t.representedBy}: Kamal Abdalbary<br/>
               Zeppelinstraße 62, 52068 Aachen, Germany<br/>
               ${t.phone}: +49 152524 11886 &bull; ${t.email}: service@barigroup.net<br/>
-              ${t.taxId}: 201/5000/8736 &bull; ${t.vatId}: DE436103705<br/>
+              ${t.vatId}: DE436103705<br/>
               LUCID: DE4769331655434<br/>
               <strong>${t.date}:</strong> ${dateStr}
             </p>
@@ -549,7 +549,7 @@ export function buildInvoiceHtml(order: InvoiceOrder, requestedLang?: string): s
         <div class="footer">
           <p style="margin: 0 0 4px 0; font-weight: 600; color: #1c1917;">${t.thankYou}</p>
           <p style="margin: 0;">
-            barigroup.net &bull; Zeppelinstraße 62, 52068 Aachen &bull; Steuernummer: 201/5000/8736 &bull; USt-IdNr.: DE436103705 &bull; LUCID: DE4769331655434 &bull; service@barigroup.net
+            barigroup.net &bull; Zeppelinstraße 62, 52068 Aachen &bull; USt-IdNr.: DE436103705 &bull; LUCID: DE4769331655434 &bull; service@barigroup.net
           </p>
         </div>
 

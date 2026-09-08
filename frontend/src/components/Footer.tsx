@@ -4,20 +4,24 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Mail, X, Phone, Shield, FileText } from 'lucide-react';
 import { Locale } from '../utils/i18n';
+import axios from 'axios';
+import { resolveImageUrl } from '../utils/api';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const footerTranslations = {
   de: {
-    desc: "BariStyle ist der offizielle Vertriebspartner für die renommierten Marken AOUI, REEF und OSMA in Deutschland.",
-    col1_title: "BariStyle Shop",
+    desc: "BS Baristore ist Ihre vertrauenswürdige Plattform für erstklassigen Einkauf. Wir liefern hochwertige Produkte aus verschiedenen Bereichen.",
+    col1_title: "BS Baristore",
     col1_affiliate: "Affiliate Portal",
     col1_account: "Mein Konto",
     col1_wishlist: "Wunschliste",
     col1_cart: "Warenkorb",
     col1_about: "Über uns",
-    col1_wholesale: "Parfüm Großhandel",
-    
+    col1_wholesale: "B2B Großhandel",
+
     col2_title: "Arabische Marken",
-    
+
     col3_title: "Wichtige Seiten",
     col3_membership: "Mitgliedschaftsvereinbarung",
     col3_privacy: "Datenschutzerklärung",
@@ -27,27 +31,27 @@ const footerTranslations = {
     col3_imprint: "Impressum",
     col3_terms: "AGB",
     col3_cookies: "Cookie-Richtlinie (EU)",
-    
+
     col4_title: "Newsletter",
     col4_desc: "Melden Sie sich jetzt an und erhalten Sie exklusive Angebote, Rabattcodes und Neuigkeiten zu unseren Düften direkt in Ihr Postfach.",
     col4_placeholder: "Ihre E-Mail-Adresse",
     col4_btn: "Abonnieren",
     col4_success: "Vielen Dank für Ihre Anmeldung!",
-    
+
     copyright: "© 2026 barigroup.net. Alle Rechte vorbehalten."
   },
   en: {
-    desc: "BariStyle is the official distributor for the renowned brands AOUI, REEF, and OSMA in Germany.",
-    col1_title: "BariStyle Shop",
+    desc: "BS Baristore is your premier global marketplace for top-tier retail brands and universal department logistics.",
+    col1_title: "BS Baristore",
     col1_affiliate: "Affiliate Portal",
     col1_account: "My Account",
     col1_wishlist: "Wishlist",
     col1_cart: "Shopping Cart",
     col1_about: "About Us",
-    col1_wholesale: "Perfume Wholesale",
-    
+    col1_wholesale: "B2B Wholesale",
+
     col2_title: "Arabian Brands",
-    
+
     col3_title: "Important Pages",
     col3_membership: "Membership Agreement",
     col3_privacy: "Privacy Policy",
@@ -57,27 +61,27 @@ const footerTranslations = {
     col3_imprint: "Imprint / Impressum",
     col3_terms: "Terms & Conditions",
     col3_cookies: "Cookie Policy (EU)",
-    
+
     col4_title: "Newsletter",
     col4_desc: "Subscribe now and receive exclusive offers, discount codes, and news about our fragrances directly to your inbox.",
     col4_placeholder: "Your email address",
     col4_btn: "Subscribe",
     col4_success: "Thank you for subscribing!",
-    
+
     copyright: "© 2026 barigroup.net. All rights reserved."
   },
   ar: {
-    desc: "BariStyle هو الموزع الرسمي المعتمد للعطور الفاخرة المرموقة من الماركات العالمية الشهيرة AOUI و REEF و OSMA في ألمانيا وأوروبا.",
-    col1_title: "متجر باري ستايل",
+    desc: "BS Baristore هي منصتكم الموثوقة للتسوق العالمي المميز وتوزيع البضائع والمنتجات المتنوعة عبر أفضل قنوات الشحن والتسليم.",
+    col1_title: "متجر بي إس باريستور",
     col1_affiliate: "بوابة الشركاء (Affiliate)",
     col1_account: "حسابي الشخصي",
     col1_wishlist: "قائمة الأمنيات",
     col1_cart: "حقيبة التسوق",
     col1_about: "من نحن",
-    col1_wholesale: "تجارة الجملة للعطور",
-    
+    col1_wholesale: "تجارة الجملة العالمية",
+
     col2_title: "ماركات عربية فاخرة",
-    
+
     col3_title: "صفحات هامة",
     col3_membership: "اتفاقية العضوية",
     col3_privacy: "سياسة الخصوصية",
@@ -87,27 +91,27 @@ const footerTranslations = {
     col3_imprint: "البيانات القانونية (Impressum)",
     col3_terms: "الشروط والأحكام (AGB)",
     col3_cookies: "سياسة الكوكيز (الاتحاد الأوروبي)",
-    
+
     col4_title: "النشرة البريدية",
     col4_desc: "اشترك معنا الآن لتصلك أقوى العروض الحصرية، وأكواد الخصم المميزة، وأحدث أخبار عطورنا النادرة مباشرة إلى بريدك الإلكتروني.",
     col4_placeholder: "عنوان بريدك الإلكتروني",
     col4_btn: "اشترك الآن",
     col4_success: "شكرًا لك على اشتراكك في النشرة!",
-    
+
     copyright: "جميع الحقوق محفوظة © 2026 لمجموعة barigroup.net."
   },
   fr: {
-    desc: "BariStyle est le distributeur officiel des prestigieuses marques AOUI, REEF et OSMA en Allemagne.",
-    col1_title: "Boutique BariStyle",
+    desc: "BS Baristore est votre destination d'achat mondiale de confiance pour des produits de premier choix.",
+    col1_title: "Boutique BS Baristore",
     col1_affiliate: "Portail d'Affiliation",
     col1_account: "Mon Compte",
     col1_wishlist: "Liste de Souhaits",
     col1_cart: "Panier",
     col1_about: "À propos de nous",
-    col1_wholesale: "Vente en gros de parfums",
-    
+    col1_wholesale: "Vente en gros B2B",
+
     col2_title: "Marques Arabes",
-    
+
     col3_title: "Pages Importantes",
     col3_membership: "Accord de Membre",
     col3_privacy: "Politique de Confidentialité",
@@ -117,27 +121,27 @@ const footerTranslations = {
     col3_imprint: "Mentions Légales (Imprint)",
     col3_terms: "Conditions Générales",
     col3_cookies: "Politique relative aux cookies (UE)",
-    
+
     col4_title: "Newsletter",
     col4_desc: "Abonnez-vous dès maintenant et recevez des offres exclusives, des codes de réduction et des nouveautés sur nos parfums directement dans votre boîte de réception.",
     col4_placeholder: "Votre adresse e-mail",
     col4_btn: "S'abonner",
     col4_success: "Merci pour votre abonnement!",
-    
+
     copyright: "© 2026 barigroup.net. Tous droits réservés."
   },
   nl: {
-    desc: "BariStyle is de officiële distributeur voor de gerenommeerde merken AOUI, REEF en OSMA in Duitsland.",
-    col1_title: "BariStyle Shop",
+    desc: "BS Baristore is uw vertrouwde wereldwijde platform voor premium producten en department store logistiek.",
+    col1_title: "BS Baristore Shop",
     col1_affiliate: "Affiliate Portaal",
     col1_account: "Mijn Account",
     col1_wishlist: "Verlanglijst",
     col1_cart: "Winkelwagen",
     col1_about: "Over ons",
-    col1_wholesale: "Parfum Groothandel",
-    
+    col1_wholesale: "B2B Groothandel",
+
     col2_title: "Arabische Merken",
-    
+
     col3_title: "Belangrijke Pagina's",
     col3_membership: "Lidmaatschapsovereenkomst",
     col3_privacy: "Privacybeleid",
@@ -147,13 +151,13 @@ const footerTranslations = {
     col3_imprint: "Colofon / Impressum",
     col3_terms: "Algemene Voorwaarden",
     col3_cookies: "Cookiebeleid (EU)",
-    
+
     col4_title: "Nieuwsbrief",
     col4_desc: "Meld u nu aan en ontvang exclusieve aanbiedingen, kortingscodes en nieuws over onze geuren rechtstreeks in uw inbox.",
     col4_placeholder: "Uw e-mailadres",
     col4_btn: "Aanmelden",
     col4_success: "Bedankt voor uw aanmelding!",
-    
+
     copyright: "© 2026 barigroup.net. Alle rechten voorbehouden."
   }
 };
@@ -175,8 +179,14 @@ const impressumDetails = {
           <p>E-Mail: <strong>service@barigroup.net</strong></p>
         </div>
         <div>
-          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Steuernummer</p>
-          <p>201/5000/8736</p>
+          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Umsatzsteuer-Identifikationsnummer (gemäß § 27 a UStG)</p>
+          <p class="font-mono font-bold text-emerald-700">DE436103705</p>
+        </div>
+
+        <div>
+          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Verpackungsregister LUCID (gemäß § 6 VerpackDG / VerpackG)</p>
+          <p class="font-mono font-bold text-emerald-700">DE4769331655434</p>
+          <p class="text-xs text-stone-500 mt-0.5">Registrierter Hersteller / Markeninhaber: Barigroup (Dual-System konform)</p>
         </div>
         <div class="pt-2 border-t border-stone-100">
           <p class="font-bold text-stone-900 mb-1">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV:</p>
@@ -201,8 +211,14 @@ const impressumDetails = {
           <p>Email: <strong>service@barigroup.net</strong></p>
         </div>
         <div>
-          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Tax Identification Number</p>
-          <p>201/5000/8736</p>
+          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">VAT Identification Number (§ 27a UStG)</p>
+          <p class="font-mono font-bold text-emerald-700">DE436103705</p>
+        </div>
+
+        <div>
+          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Packaging Register LUCID (German Packaging Act § 6 VerpackDG)</p>
+          <p class="font-mono font-bold text-emerald-700">DE4769331655434</p>
+          <p class="text-xs text-stone-500 mt-0.5">Registered Producer / Brand: Barigroup</p>
         </div>
         <div class="pt-2 border-t border-stone-100">
           <p class="font-bold text-stone-900 mb-1">Responsible for content according to § 55 Abs. 2 RStV:</p>
@@ -227,8 +243,14 @@ const impressumDetails = {
           <p>البريد الإلكتروني: <strong>service@barigroup.net</strong></p>
         </div>
         <div>
-          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">الرقم الضريبي (Steuernummer)</p>
-          <p>201/5000/8736</p>
+          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">رقم ضريبة القيمة المضافة الأوروبي (USt-IdNr. - § 27a UStG)</p>
+          <p class="font-mono font-bold text-emerald-700">DE436103705</p>
+        </div>
+
+        <div>
+          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">رقم التسجيل في سجل التغليف الألماني (LUCID Reg.-Nr. - § 6 VerpackDG)</p>
+          <p class="font-mono font-bold text-emerald-700">DE4769331655434</p>
+          <p class="text-xs text-stone-500 mt-0.5">الجهة المصنعة المسجلة / العلامة التجارية: Barigroup</p>
         </div>
         <div class="pt-2 border-t border-stone-100">
           <p class="font-bold text-stone-900 mb-1">المسؤول عن المحتوى بموجب الفقرة 2 من المادة 55 من قانون البث والإعلام الألماني (RStV):</p>
@@ -253,8 +275,14 @@ const impressumDetails = {
           <p>E-mail : <strong>service@barigroup.net</strong></p>
         </div>
         <div>
-          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Numéro d'identification fiscale</p>
-          <p>201/5000/8736</p>
+          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Numéro de TVA intracommunautaire (§ 27a UStG)</p>
+          <p class="font-mono font-bold text-emerald-700">DE436103705</p>
+        </div>
+
+        <div>
+          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Registre des emballages LUCID (§ 6 VerpackDG)</p>
+          <p class="font-mono font-bold text-emerald-700">DE4769331655434</p>
+          <p class="text-xs text-stone-500 mt-0.5">Producteur enregistré / Marque : Barigroup</p>
         </div>
         <div class="pt-2 border-t border-stone-100">
           <p class="font-bold text-stone-900 mb-1">Responsable du contenu selon le § 55 Abs. 2 RStV :</p>
@@ -279,8 +307,14 @@ const impressumDetails = {
           <p>E-mail: <strong>service@barigroup.net</strong></p>
         </div>
         <div>
-          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Belastingnummer</p>
-          <p>201/5000/8736</p>
+          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Btw-identificatienummer (§ 27a UStG)</p>
+          <p class="font-mono font-bold text-emerald-700">DE436103705</p>
+        </div>
+
+        <div>
+          <p class="font-bold text-stone-900 border-b border-stone-100 pb-1 mb-1">Verpakkingsregister LUCID (§ 6 VerpackDG)</p>
+          <p class="font-mono font-bold text-emerald-700">DE4769331655434</p>
+          <p class="text-xs text-stone-500 mt-0.5">Geregistreerde producent / Merk: Barigroup</p>
         </div>
         <div class="pt-2 border-t border-stone-100">
           <p class="font-bold text-stone-900 mb-1">Verantwoordelijk voor de inhoud volgens § 55 Abs. 2 RStV:</p>
@@ -298,7 +332,7 @@ const agbDetails = {
       <div class="space-y-6 text-stone-800 text-sm leading-relaxed font-sans" dir="ltr">
         <div>
           <h4 class="font-bold text-base text-stone-900 border-b border-stone-100 pb-1 mb-2">1. Geltungsbereich und Anbieter</h4>
-          <p>Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Bestellungen, die Kunden über den Online-Shop <strong>BariStyle</strong> der <strong>barigroup.net</strong> (Inhaber: Kamal Abdalbary, Zeppelinstraße 62, 52068 Aachen, Deutschland) tätigen.</p>
+          <p>Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für alle Bestellungen, die Kunden über den Online-Shop <strong>BS Baristore</strong> der <strong>barigroup.net</strong> (Inhaber: Kamal Abdalbary, Zeppelinstraße 62, 52068 Aachen, Deutschland) tätigen.</p>
         </div>
         
         <div>
@@ -372,7 +406,7 @@ const agbDetails = {
       <div class="space-y-6 text-stone-800 text-sm leading-relaxed font-sans" dir="ltr">
         <div>
           <h4 class="font-bold text-base text-stone-900 border-b border-stone-100 pb-1 mb-2">1. Scope of Application and Provider</h4>
-          <p>These General Terms and Conditions (GTC) apply to all orders placed by customers through the <strong>BariStyle</strong> online shop of <strong>barigroup.net</strong> (Owner: Kamal Abdalbary, Zeppelinstraße 62, 52068 Aachen, Germany).</p>
+          <p>These General Terms and Conditions (GTC) apply to all orders placed by customers through the <strong>BS Baristore</strong> online shop of <strong>barigroup.net</strong> (Owner: Kamal Abdalbary, Zeppelinstraße 62, 52068 Aachen, Germany).</p>
         </div>
         
         <div>
@@ -446,7 +480,7 @@ const agbDetails = {
       <div class="space-y-6 text-stone-800 text-sm leading-relaxed text-right font-sans" dir="rtl">
         <div>
           <h4 class="font-bold text-base text-stone-900 border-b border-stone-100 pb-1 mb-2 text-right">1. نطاق التطبيق ومزود الخدمة</h4>
-          <p>تسري هذه الشروط والأحكام العامة (AGB) على جميع الطلبات والعمليات الشرائية التي يقوم بها العملاء من خلال المتجر الإلكتروني <strong>BariStyle</strong> التابع لمجموعة <strong>barigroup.net</strong> (المالك: كمال عبد الباري، Zeppelinstraße 62, 52068 Aachen، ألمانيا).</p>
+          <p>تسري هذه الشروط والأحكام العامة (AGB) على جميع الطلبات والعمليات الشرائية التي يقوم بها العملاء من خلال المتجر الإلكتروني <strong>BS Baristore</strong> التابع لمجموعة <strong>barigroup.net</strong> (المالك: كمال عبد الباري، Zeppelinstraße 62, 52068 Aachen، ألمانيا).</p>
         </div>
         
         <div>
@@ -520,7 +554,7 @@ const agbDetails = {
       <div class="space-y-6 text-stone-800 text-sm leading-relaxed font-sans" dir="ltr">
         <div>
           <h4 class="font-bold text-base text-stone-900 border-b border-stone-100 pb-1 mb-2">1. Champ d'application et prestataire</h4>
-          <p>Les présentes Conditions Générales de Vente (CGV) s'appliquent à toutes les commandes passées par les clients sur la boutique en ligne <strong>BariStyle</strong> de <strong>barigroup.net</strong> (Propriétaire : Kamal Abdalbary, Zeppelinstraße 62, 52068 Aachen, Allemagne).</p>
+          <p>Les présentes Conditions Générales de Vente (CGV) s'appliquent à toutes les commandes passées par les clients sur la boutique en ligne <strong>BS Baristore</strong> de <strong>barigroup.net</strong> (Propriétaire : Kamal Abdalbary, Zeppelinstraße 62, 52068 Aachen, Allemagne).</p>
         </div>
         
         <div>
@@ -594,7 +628,7 @@ const agbDetails = {
       <div class="space-y-6 text-stone-800 text-sm leading-relaxed font-sans" dir="ltr">
         <div>
           <h4 class="font-bold text-base text-stone-900 border-b border-stone-100 pb-1 mb-2">1. Toepassingsgebied en aanbieder</h4>
-          <p>Deze algemene voorwaarden (AV) zijn van toepassing op alle bestellingen die klanten plaatsen via de online shop <strong>BariStyle</strong> van <strong>barigroup.net</strong> (Eigenaar: Kamal Abdalbary, Zeppelinstraße 62, 52068 Aachen, Duitsland).</p>
+          <p>Deze algemene voorwaarden (AV) zijn van toepassing op alle bestellingen die klanten plaatsen via de online shop <strong>BS Baristore</strong> van <strong>barigroup.net</strong> (Eigenaar: Kamal Abdalbary, Zeppelinstraße 62, 52068 Aachen, Duitsland).</p>
         </div>
         
         <div>
@@ -1012,6 +1046,14 @@ export default function Footer() {
   const [modalType, setModalType] = useState<'imprint' | 'contact' | 'agb' | 'cookies' | null>(null);
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterSuccess, setNewsletterSuccess] = useState(false);
+  const [newsletterError, setNewsletterError] = useState('');
+  const [nlStep, setNlStep] = useState<1 | 2>(1);
+  const [nlType, setNlType] = useState<'CUSTOMER' | 'BUSINESS'>('CUSTOMER');
+  const [nlSector, setNlSector] = useState('');
+  const [nlBizName, setNlBizName] = useState('');
+  const [nlNotes, setNlNotes] = useState('');
+  const [nlSubmitting, setNlSubmitting] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string>('/logo.png');
 
   const syncLang = () => {
     const savedLang = localStorage.getItem('lang') as Locale;
@@ -1023,6 +1065,19 @@ export default function Footer() {
   useEffect(() => {
     syncLang();
     window.addEventListener('language-changed', syncLang);
+
+    const fetchLogo = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/settings/logo_url`);
+        if (res.data) {
+          setLogoUrl(res.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch logo inside footer", error);
+      }
+    };
+    fetchLogo();
+
     return () => {
       window.removeEventListener('language-changed', syncLang);
     };
@@ -1034,80 +1089,132 @@ export default function Footer() {
   const cookies = cookieDetails[currentLang] || cookieDetails.de;
   const isRtl = currentLang === 'ar';
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const SECTORS = [
+    { value: 'perfume_shop', de: '🌸 Parfüm / Duftshop', en: '🌸 Perfume / Fragrance Shop', ar: '🌸 محل عطورات' },
+    { value: 'mobile_shop', de: '📱 Handy / Smartphone Shop', en: '📱 Mobile / Phone Shop', ar: '📱 محل موبايلات' },
+    { value: 'online_store', de: '🛒 Online-Shop / E-Commerce', en: '🛒 Online Store / E-Commerce', ar: '🛒 متجر إلكتروني' },
+    { value: 'restaurant', de: '☕ Restaurant / Café', en: '☕ Restaurant / Café', ar: '☕ مطعم / كافيه' },
+    { value: 'hotel', de: '🏨 Hotel / Unterkunft', en: '🏨 Hotel / Hospitality', ar: '🏨 فندق / ضيافة' },
+    { value: 'retail', de: '🏪 Einzelhandel', en: '🏪 General Retail', ar: '🏪 تجزئة عامة' },
+    { value: 'kiosk', de: '🗞️ Kiosk', en: '🗞️ Kiosk', ar: '🗞️ كشك' },
+    { value: 'other', de: '✏️ Sonstiges', en: '✏️ Other', ar: '✏️ أخرى' },
+  ];
+
+
+  const handleStep1 = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newsletterEmail) {
+    if (!newsletterEmail) return;
+    if (nlType === 'BUSINESS') {
+      setNlStep(2);
+    } else {
+      handleFinalSubmit();
+    }
+  };
+
+  const handleFinalSubmit = async () => {
+    setNlSubmitting(true);
+    setNewsletterError('');
+    try {
+      await axios.post(`${API_URL}/newsletter/subscribe`, {
+        email: newsletterEmail,
+        locale: currentLang,
+        subscriber_type: nlType,
+        business_sector: nlSector || undefined,
+        business_name: nlBizName || undefined,
+        custom_notes: nlNotes || undefined,
+      });
       setNewsletterSuccess(true);
       setNewsletterEmail('');
-      setTimeout(() => setNewsletterSuccess(false), 5000);
+      setNlStep(1);
+      setNlType('CUSTOMER');
+      setNlSector('');
+      setNlBizName('');
+      setNlNotes('');
+    } catch (error: any) {
+      const msg = error.response?.data?.message || '';
+      if (msg.includes('already subscribed')) {
+        setNewsletterError(currentLang === 'ar' ? 'هذا البريد الإلكتروني مشترك بالفعل!' : currentLang === 'de' ? 'Diese E-Mail ist bereits abonniert!' : 'This email is already subscribed!');
+      } else {
+        setNewsletterError(currentLang === 'ar' ? 'فشل الاشتراك. يرجى المحاولة لاحقاً.' : currentLang === 'de' ? 'Abonnement fehlgeschlagen.' : 'Subscription failed. Please try again.');
+      }
+    } finally {
+      setNlSubmitting(false);
     }
   };
 
   return (
-    <footer className="relative bg-white border-t-[5px] border-[#0F8A5F] mt-20 pt-16 pb-12 w-full text-stone-700 font-sans" dir={isRtl ? 'rtl' : 'ltr'}>
+    <footer className="relative bg-white border-t-[5px] border-[#d40026] mt-20 pt-16 pb-12 w-full text-stone-700 font-sans" dir={isRtl ? 'rtl' : 'ltr'}>
       {/* Main Footer Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-        
+
         {/* Column 1: Logo & About */}
         <div className="space-y-6 flex flex-col justify-start">
           <Link href="/" className="inline-block">
-            <span className="text-3xl font-serif font-black tracking-wider text-[#0F8A5F]">BariStyle</span>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={resolveImageUrl(logoUrl)} alt="BS Baristore" className="h-20 w-auto object-contain bg-white/10 p-1 rounded" />
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="bg-[#d40026] text-white px-3.5 py-1.5 rounded font-black text-xl tracking-tighter">BS</div>
+                <span className="text-2xl font-black tracking-tight text-stone-900 font-sans font-medium">Baristore</span>
+              </div>
+            )}
           </Link>
           <p className="text-xs text-stone-500 leading-relaxed font-medium">
             {t.desc}
           </p>
           {/* Golden Social Icons */}
           <div className={`flex gap-3 items-center ${isRtl ? 'flex-row-reverse' : ''}`}>
-            <a 
-              href="https://facebook.com" 
-              target="_blank" 
-              rel="noreferrer" 
+            <a
+              href="https://www.facebook.com/BarigroupStore/"
+              target="_blank"
+              rel="noreferrer"
               className="w-8 h-8 rounded-full border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center hover:bg-[#D4AF37] hover:text-white transition duration-300 shadow-xs"
             >
               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M9 8H7v3h2v9h3v-9h3.3l.7-3H12V6c0-.9.7-1 1-1h2V2h-3C9.8 2 9 3.8 9 5.8V8z"/>
+                <path d="M9 8H7v3h2v9h3v-9h3.3l.7-3H12V6c0-.9.7-1 1-1h2V2h-3C9.8 2 9 3.8 9 5.8V8z" />
               </svg>
             </a>
-            <a 
-              href="https://instagram.com" 
-              target="_blank" 
-              rel="noreferrer" 
+            <a
+              href="https://instagram.com"
+              target="_blank"
+              rel="noreferrer"
               className="w-8 h-8 rounded-full border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center hover:bg-[#D4AF37] hover:text-white transition duration-300 shadow-xs"
             >
               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M12 2.1c3.2 0 3.6 0 4.9.1 1.2.1 1.8.3 2.2.5.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .5 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.8-.5 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.5-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.3-2.2-.5-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.5-2.2-.1-1.3-.1-1.7-.1-4.9s0-3.6.1-4.9c.1-1.2.3-1.8.5-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.5 1.3-.1 1.7-.1 4.9-.1zM12 0C8.7 0 8.3 0 7 0c-1.3.1-2.2.3-3 .6-.8.3-1.5.7-2.1 1.4-.7.6-1.1 1.3-1.4 2.1-.3.8-.5 1.7-.6 3-.1 1.3-.1 1.7-.1 5s0 3.7.1 5c.1 1.3.3 2.2.6 3 .3.8.7 1.5 1.4 2.1.6.7 1.3 1.1 2.1 1.4.8.3 1.7.5 3 .6 1.3.1 1.7.1 5 .1s3.7 0 5-.1c1.3-.1 2.2-.3 3-.6.8-.3 1.5-.7 2.1-1.4.7-.6 1.1-1.3 1.4-2.1.3-.8.5-1.7.6-3 .1-1.3.1-1.7.1-5s0-3.7-.1-5c-.1-1.3-.3-2.2-.6-3-.3-.8-.7-1.5-1.4-2.1-.6-.7-1.3-1.1-2.1-1.4-.8-.3-1.7-.5-3-.6-1.3-.1-1.7-.1-5-.1z"/>
-                <path d="M12 5.8c-3.4 0-6.2 2.8-6.2 6.2s2.8 6.2 6.2 6.2 6.2-2.8 6.2-6.2-2.8-6.2-6.2-6.2zm0 10.3c-2.3 0-4.1-1.8-4.1-4.1s1.8-4.1 4.1-4.1 4.1 1.8 4.1 4.1-1.8 4.1-4.1 4.1z"/>
-                <circle cx="18.4" cy="5.6" r="1.4" fill="currentColor"/>
+                <path d="M12 2.1c3.2 0 3.6 0 4.9.1 1.2.1 1.8.3 2.2.5.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .5 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.8-.5 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.5-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.3-2.2-.5-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.5-2.2-.1-1.3-.1-1.7-.1-4.9s0-3.6.1-4.9c.1-1.2.3-1.8.5-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.5 1.3-.1 1.7-.1 4.9-.1zM12 0C8.7 0 8.3 0 7 0c-1.3.1-2.2.3-3 .6-.8.3-1.5.7-2.1 1.4-.7.6-1.1 1.3-1.4 2.1-.3.8-.5 1.7-.6 3-.1 1.3-.1 1.7-.1 5s0 3.7.1 5c.1 1.3.3 2.2.6 3 .3.8.7 1.5 1.4 2.1.6.7 1.3 1.1 2.1 1.4.8.3 1.7.5 3 .6 1.3.1 1.7.1 5 .1s3.7 0 5-.1c1.3-.1 2.2-.3 3-.6.8-.3 1.5-.7 2.1-1.4.7-.6 1.1-1.3 1.4-2.1.3-.8.5-1.7.6-3 .1-1.3.1-1.7.1-5s0-3.7-.1-5c-.1-1.3-.3-2.2-.6-3-.3-.8-.7-1.5-1.4-2.1-.6-.7-1.3-1.1-2.1-1.4-.8-.3-1.7-.5-3-.6-1.3-.1-1.7-.1-5-.1z" />
+                <path d="M12 5.8c-3.4 0-6.2 2.8-6.2 6.2s2.8 6.2 6.2 6.2 6.2-2.8 6.2-6.2-2.8-6.2-6.2-6.2zm0 10.3c-2.3 0-4.1-1.8-4.1-4.1s1.8-4.1 4.1-4.1 4.1 1.8 4.1 4.1-1.8 4.1-4.1 4.1z" />
+                <circle cx="18.4" cy="5.6" r="1.4" fill="currentColor" />
               </svg>
             </a>
-            <a 
-              href="https://youtube.com" 
-              target="_blank" 
-              rel="noreferrer" 
+            <a
+              href="https://youtube.com"
+              target="_blank"
+              rel="noreferrer"
               className="w-8 h-8 rounded-full border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center hover:bg-[#D4AF37] hover:text-white transition duration-300 shadow-xs"
             >
               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M23.5 6.2c-.3-1.2-1.2-2.1-2.4-2.4C19 3.3 12 3.3 12 3.3s-7 0-9.1.5C1.7 4.1.8 5 .5 6.2.1 8.3.1 12.6.1 12.6s0 4.3.4 6.4c.3 1.2 1.2 2.1 2.4 2.4 2.1.5 9.1.5 9.1.5s7 0 9.1-.5c1.2-.3 2.1-1.2 2.4-2.4.4-2.1.4-6.4.4-6.4s0-4.3-.4-6.4zM9.6 16.3V8.9l6.4 3.7-6.4 3.7z"/>
+                <path d="M23.5 6.2c-.3-1.2-1.2-2.1-2.4-2.4C19 3.3 12 3.3 12 3.3s-7 0-9.1.5C1.7 4.1.8 5 .5 6.2.1 8.3.1 12.6.1 12.6s0 4.3.4 6.4c.3 1.2 1.2 2.1 2.4 2.4 2.1.5 9.1.5 9.1.5s7 0 9.1-.5c1.2-.3 2.1-1.2 2.4-2.4.4-2.1.4-6.4.4-6.4s0-4.3-.4-6.4zM9.6 16.3V8.9l6.4 3.7-6.4 3.7z" />
               </svg>
             </a>
-            <a 
-              href="https://pinterest.com" 
-              target="_blank" 
-              rel="noreferrer" 
+            <a
+              href="https://pinterest.com"
+              target="_blank"
+              rel="noreferrer"
               className="w-8 h-8 rounded-full border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center hover:bg-[#D4AF37] hover:text-white transition duration-300 shadow-xs"
             >
               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M12 0C5.4 0 0 5.4 0 12c0 5 3.1 9.3 7.6 11-.1-.9-.2-2.4 0-3.4.2-1 1.4-6 1.4-6s-.3-.7-.3-1.8c0-1.7 1-2.9 2.2-2.9 1 0 1.5.8 1.5 1.7 0 1-.7 2.6-1 4-3 1.3-1.1 2.6 1.1 2.6 4 0 7.1-4.2 7.1-10.2 0-5.3-3.8-9-9.3-9-6.3 0-10 4.7-10 9.6 0 1.9.7 4 1.7 5.2.2.2.2.4.1.7l-.6 2.4c-.1.4-.3.5-.7.3-2.6-1.2-4.2-5-4.2-8.1 0-7 5.1-13.4 14.7-13.4 7.7 0 13.7 5.5 13.7 12.8 0 7.7-4.8 13.9-11.6 13.9-2.3 0-4.4-1.2-5.1-2.6 0 0-1.1 4.3-1.4 5.3-.5 1.9-1.9 4.3-2.8 5.7C9.8 23.8 10.9 24 12 24c6.6 0 12-5.4 12-12S18.6 0 12 0z"/>
+                <path d="M12 0C5.4 0 0 5.4 0 12c0 5 3.1 9.3 7.6 11-.1-.9-.2-2.4 0-3.4.2-1 1.4-6 1.4-6s-.3-.7-.3-1.8c0-1.7 1-2.9 2.2-2.9 1 0 1.5.8 1.5 1.7 0 1-.7 2.6-1 4-3 1.3-1.1 2.6 1.1 2.6 4 0 7.1-4.2 7.1-10.2 0-5.3-3.8-9-9.3-9-6.3 0-10 4.7-10 9.6 0 1.9.7 4 1.7 5.2.2.2.2.4.1.7l-.6 2.4c-.1.4-.3.5-.7.3-2.6-1.2-4.2-5-4.2-8.1 0-7 5.1-13.4 14.7-13.4 7.7 0 13.7 5.5 13.7 12.8 0 7.7-4.8 13.9-11.6 13.9-2.3 0-4.4-1.2-5.1-2.6 0 0-1.1 4.3-1.4 5.3-.5 1.9-1.9 4.3-2.8 5.7C9.8 23.8 10.9 24 12 24c6.6 0 12-5.4 12-12S18.6 0 12 0z" />
               </svg>
             </a>
-            <a 
-              href="https://tiktok.com" 
-              target="_blank" 
-              rel="noreferrer" 
+            <a
+              href="https://tiktok.com"
+              target="_blank"
+              rel="noreferrer"
               className="w-8 h-8 rounded-full border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center hover:bg-[#D4AF37] hover:text-white transition duration-300 shadow-xs"
             >
               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M12.5 0v16.5a3.5 3.5 0 1 1-3.5-3.5h1v-4a7.5 7.5 0 1 0 6.5 7.4h-4a3.5 3.5 0 0 1-3.5-3.4v.1a3.5 3.5 0 0 1 3.5-3.5v-5a7.5 7.5 0 0 0 4 7.5v-3.5a11.5 11.5 0 0 1-4-4V0h-4z"/>
+                <path d="M12.5 0v16.5a3.5 3.5 0 1 1-3.5-3.5h1v-4a7.5 7.5 0 1 0 6.5 7.4h-4a3.5 3.5 0 0 1-3.5-3.4v.1a3.5 3.5 0 0 1 3.5-3.5v-5a7.5 7.5 0 0 0 4 7.5v-3.5a11.5 11.5 0 0 1-4-4V0h-4z" />
               </svg>
             </a>
           </div>
@@ -1136,10 +1243,10 @@ export default function Footer() {
             <li><button onClick={() => setModalType('imprint')} className="hover:text-stone-900 transition-colors text-left focus:outline-none">{t.col3_membership}</button></li>
             <li><button onClick={() => setModalType('imprint')} className="hover:text-stone-900 transition-colors text-left focus:outline-none">{t.col3_privacy}</button></li>
             <li><button onClick={() => setModalType('imprint')} className="hover:text-stone-900 transition-colors text-left focus:outline-none">{t.col3_certs}</button></li>
-            <li><button onClick={() => setModalType('imprint')} className="hover:text-stone-900 transition-colors text-left focus:outline-none">{t.col3_withdrawal}</button></li>
+            <li><Link href="/return-policy" className="hover:text-stone-900 transition-colors">{t.col3_withdrawal}</Link></li>
             <li>
-              <button 
-                onClick={() => setModalType('contact')} 
+              <button
+                onClick={() => setModalType('contact')}
                 className="text-[#D4AF37] hover:text-[#c49f27] font-extrabold uppercase transition-colors text-left focus:outline-none"
               >
                 ★ {t.col3_contact}
@@ -1151,44 +1258,176 @@ export default function Footer() {
           </ul>
         </div>
 
-        {/* Column 4: Newsletter */}
+        {/* Column 4: Newsletter — Smart 2-Step Form */}
         <div>
-          <h4 className="text-base font-bold text-[#0F8A5F] mb-6 uppercase tracking-wider">{t.col4_title}</h4>
-          <p className="text-xs text-stone-500 leading-relaxed mb-6 font-medium">
-            {t.col4_desc}
-          </p>
-          <form onSubmit={handleSubscribe} className="space-y-3">
-            <div className="relative">
-              <input 
-                type="email" 
+          <h4 className="text-base font-bold text-[#0F8A5F] mb-4 uppercase tracking-wider">{t.col4_title}</h4>
+
+          {newsletterSuccess ? (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
+              <div className="text-2xl mb-1">🎉</div>
+              <p className="text-xs text-emerald-700 font-bold">{t.col4_success}</p>
+            </div>
+          ) : nlStep === 1 ? (
+            /* ─── Step 1: Email + Type ─── */
+            <form onSubmit={handleStep1} className="space-y-3">
+              <p className="text-xs text-stone-500 leading-relaxed font-medium">{t.col4_desc}</p>
+              <input
+                type="email"
                 value={newsletterEmail}
                 onChange={e => setNewsletterEmail(e.target.value)}
-                placeholder={t.col4_placeholder} 
+                placeholder={t.col4_placeholder}
                 className="w-full border border-stone-200 rounded-sm px-3.5 py-2.5 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#0F8A5F] bg-stone-50/50"
                 required
               />
-            </div>
-            <button 
-              type="submit" 
-              className="w-full bg-[#0F8A5F] text-white py-3 rounded-sm text-xs font-bold uppercase tracking-widest hover:bg-[#0c6e4c] transition shadow-xs"
-            >
-              {t.col4_btn}
-            </button>
-            {newsletterSuccess && (
-              <p className="text-xs text-emerald-600 font-bold text-center mt-2 animate-pulse">{t.col4_success}</p>
-            )}
-          </form>
+              {/* Customer type selector */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNlType('CUSTOMER')}
+                  className={`py-2.5 rounded-sm text-[10px] font-bold uppercase tracking-wide border-2 transition ${
+                    nlType === 'CUSTOMER'
+                      ? 'border-[#0F8A5F] bg-[#0F8A5F] text-white'
+                      : 'border-stone-200 text-stone-500 hover:border-stone-400'
+                  }`}
+                >
+                  {currentLang === 'ar' ? '👤 زبون عادي' : currentLang === 'de' ? '👤 Privatkunde' : '👤 Customer'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNlType('BUSINESS')}
+                  className={`py-2.5 rounded-sm text-[10px] font-bold uppercase tracking-wide border-2 transition ${
+                    nlType === 'BUSINESS'
+                      ? 'border-[#d40026] bg-[#d40026] text-white'
+                      : 'border-stone-200 text-stone-500 hover:border-stone-400'
+                  }`}
+                >
+                  {currentLang === 'ar' ? '🏢 زبون أعمال' : currentLang === 'de' ? '🏢 Geschäftskunde' : '🏢 Business'}
+                </button>
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-[#0F8A5F] text-white py-3 rounded-sm text-xs font-bold uppercase tracking-widest hover:bg-[#0c6e4c] transition shadow-xs"
+              >
+                {nlType === 'BUSINESS'
+                  ? (currentLang === 'ar' ? 'التالي ←' : currentLang === 'de' ? 'Weiter →' : 'Next →')
+                  : t.col4_btn}
+              </button>
+              {newsletterError && <p className="text-xs text-rose-600 font-bold text-center">{newsletterError}</p>}
+            </form>
+          ) : (
+            /* ─── Step 2: Business Info ─── */
+            <form onSubmit={e => { e.preventDefault(); handleFinalSubmit(); }} className="space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <button type="button" onClick={() => setNlStep(1)} className="text-stone-400 hover:text-stone-700 text-xs">← {currentLang === 'ar' ? 'رجوع' : currentLang === 'de' ? 'Zurück' : 'Back'}</button>
+                <span className="text-xs font-bold text-stone-600">{currentLang === 'ar' ? 'معلومات نشاطك التجاري' : currentLang === 'de' ? 'Ihr Unternehmen' : 'Your Business'}</span>
+              </div>
+
+              {/* Sector Grid */}
+              <div className="grid grid-cols-2 gap-1.5">
+                {SECTORS.map(s => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setNlSector(nlSector === s.value ? '' : s.value)}
+                    className={`text-left px-2 py-1.5 rounded-sm text-[9px] font-bold border transition leading-tight ${
+                      nlSector === s.value
+                        ? 'border-[#d40026] bg-rose-50 text-[#d40026]'
+                        : 'border-stone-200 text-stone-500 hover:border-stone-400 bg-stone-50'
+                    }`}
+                  >
+                    {currentLang === 'ar' ? s.ar : currentLang === 'de' ? s.de : s.en}
+                  </button>
+                ))}
+              </div>
+
+              {/* Business name */}
+              <input
+                type="text"
+                value={nlBizName}
+                onChange={e => setNlBizName(e.target.value)}
+                placeholder={currentLang === 'ar' ? 'اسم المحل / الشركة (اختياري)' : currentLang === 'de' ? 'Firmenname (optional)' : 'Business name (optional)'}
+                className="w-full border border-stone-200 rounded-sm px-3.5 py-2.5 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#0F8A5F] bg-stone-50/50"
+              />
+
+              {/* Free-text notes */}
+              <textarea
+                value={nlNotes}
+                onChange={e => setNlNotes(e.target.value)}
+                rows={2}
+                placeholder={currentLang === 'ar' ? 'أخبرنا عن نشاطك التجاري بحرية...' : currentLang === 'de' ? 'Erzählen Sie uns von Ihrem Geschäft...' : 'Tell us about your business freely...'}
+                className="w-full border border-stone-200 rounded-sm px-3.5 py-2.5 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#0F8A5F] bg-stone-50/50 resize-none"
+              />
+
+              <button
+                type="submit"
+                disabled={nlSubmitting}
+                className="w-full bg-[#d40026] text-white py-3 rounded-sm text-xs font-bold uppercase tracking-widest hover:bg-[#b30020] transition shadow-xs disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {nlSubmitting ? (
+                  <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />{currentLang === 'ar' ? 'جاري...' : 'Senden...'}</>
+                ) : t.col4_btn}
+              </button>
+              {newsletterError && <p className="text-xs text-rose-600 font-bold text-center">{newsletterError}</p>}
+            </form>
+          )}
         </div>
 
+      </div>
+
+      {/* Payment Methods Premium Strip */}
+      <div className="bg-[#004f35] py-5 mt-16 w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap justify-center items-center gap-8 md:gap-16">
+          {/* VISA */}
+          <div className="h-6 flex items-center justify-center opacity-90 hover:opacity-100 transition">
+            <img
+              src="/visa.svg"
+              alt="Visa"
+              className="h-5.5 w-auto object-contain"
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
+          </div>
+          {/* STRIPE */}
+          <div className="h-7 flex items-center justify-center opacity-90 hover:opacity-100 transition">
+            <img
+              src="/stripe.svg"
+              alt="Stripe"
+              className="h-6 w-auto object-contain"
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
+          </div>
+          {/* PAYPAL */}
+          <div className="h-6 flex items-center justify-center opacity-90 hover:opacity-100 transition">
+            <img
+              src="/paypal.svg"
+              alt="PayPal"
+              className="h-6 w-auto object-contain"
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
+          </div>
+          {/* GPAY */}
+          <div className="h-6 flex items-center justify-center opacity-90 hover:opacity-100 transition">
+            <img
+              src="/gpay.svg"
+              alt="Google Pay"
+              className="h-6 w-auto object-contain"
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
+          </div>
+          {/* APPLE PAY */}
+          <div className="h-6 flex items-center justify-center opacity-90 hover:opacity-100 transition">
+            <img
+              src="/applepay.svg"
+              alt="Apple Pay"
+              className="h-6 w-auto object-contain"
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Copyright Footer Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 pt-8 border-t border-stone-100 flex flex-col md:flex-row justify-between items-center text-xs text-stone-400 gap-4">
         <p className="font-semibold">{t.copyright}</p>
-        <div className="flex gap-4 font-mono font-bold text-[10px] text-stone-400">
-          <span>CURRENCY: EUR (€)</span>
-          <span>REGION: GERMANY (EU)</span>
-        </div>
       </div>
 
       {/* Impressum, Contact & AGB Premium Modal Overlay */}
@@ -1207,16 +1446,16 @@ export default function Footer() {
                 ) : (
                   <Phone className="w-5 h-5 text-emerald-200" />
                 )}
-                {modalType === 'imprint' 
-                  ? impressum.title 
-                  : modalType === 'agb' 
-                    ? agb.title 
+                {modalType === 'imprint'
+                  ? impressum.title
+                  : modalType === 'agb'
+                    ? agb.title
                     : modalType === 'cookies'
                       ? cookies.title
                       : (currentLang === 'ar' ? 'بيانات الاتصال والتواصل' : 'Contact Information')}
               </h3>
-              <button 
-                onClick={() => setModalType(null)} 
+              <button
+                onClick={() => setModalType(null)}
                 className="text-white hover:text-stone-200 transition-colors focus:outline-none"
               >
                 <X className="w-5 h-5" />
@@ -1265,11 +1504,11 @@ export default function Footer() {
                   </div>
 
                   <div className="pt-4 border-t border-stone-100 bg-stone-50/50 p-4 rounded-lg flex items-center gap-3 mt-4">
-                    <Shield className="w-6 h-6 text-emerald-600 shrink-0" />
+                    <Shield className="w-6 h-6 text-[#d40026] shrink-0" />
                     <p className="text-xs text-stone-500 leading-normal">
-                      {currentLang === 'ar' 
-                        ? 'موقع باري ستايل يعمل تحت رعاية وإدارة مجموعة barigroup.net الرسمية، جميع الضمانات والتعاقدات خاضعة للقوانين الفيدرالية في جمهورية ألمانيا الاتحادية.'
-                        : 'BariStyle is owned and operated by barigroup.net. All wholesale contracts and B2B distributions are legally backed and fully compliance-secured under German federal laws.'}
+                      {currentLang === 'ar'
+                        ? 'موقع بي إس باريستور يعمل تحت رعاية وإدارة مجموعة barigroup.net الرسمية، جميع الضمانات والتعاقدات خاضعة للقوانين الفيدرالية في جمهورية ألمانيا الاتحادية.'
+                        : 'BS Baristore is owned and operated by barigroup.net. All wholesale contracts and B2B distributions are legally backed and fully compliance-secured under German federal laws.'}
                     </p>
                   </div>
                 </div>
@@ -1278,8 +1517,8 @@ export default function Footer() {
 
             {/* Modal Footer */}
             <div className="bg-stone-50 border-t border-stone-100 px-6 py-4 flex justify-end">
-              <button 
-                onClick={() => setModalType(null)} 
+              <button
+                onClick={() => setModalType(null)}
                 className="bg-stone-900 text-white px-5 py-2 rounded-sm text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors focus:outline-none"
               >
                 {currentLang === 'ar' ? 'إغلاق النافذة' : 'Close'}

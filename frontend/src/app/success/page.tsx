@@ -1,7 +1,12 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import { CheckCircle, Package, Printer, Truck, FileText, ExternalLink, Mail, ArrowLeft } from "lucide-react";
+import axios from "axios";
+import { trackPurchase } from "../../utils/pixel";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 type Locale = 'de' | 'fr' | 'en' | 'ar' | 'nl';
 
@@ -31,7 +36,15 @@ const sTranslations = {
     billTo: "Billed To",
     paymentMethod: "Payment Method",
     creditCard: "Credit Card (Stripe Secure)",
-    complimentary: "Complimentary"
+    complimentary: "Complimentary",
+    variant: "100ml / Extrait de Parfum",
+    thanksPartnership: "Thank you for your boutique retail partnership",
+    awaitingTracking: "Awaiting shipment details",
+    pendingTrackingLink: "Tracking Link Pending Shipment",
+    printInvoiceDesc: "Print this commercial invoice or save it directly as a PDF file for your corporate bookkeeping and records.",
+    statusShipped: "Shipped",
+    statusDelivered: "Delivered",
+    statusCancelled: "Cancelled"
   },
   ar: {
     orderConfirmed: "تم تأكيد طلبك بنجاح",
@@ -58,7 +71,15 @@ const sTranslations = {
     billTo: "فاتورة لصالح",
     paymentMethod: "طريقة الدفع",
     creditCard: "بطاقة الائتمان (Stripe الآمن)",
-    complimentary: "مجاني بالكامل"
+    complimentary: "مجاني بالكامل",
+    variant: "١٠٠ مل / إكستري دو بارفان",
+    thanksPartnership: "شكرًا لك على شراكتك التجارية الراقية معنا",
+    awaitingTracking: "بانتظار تفاصيل الشحن والناقل",
+    pendingTrackingLink: "سيظهر رابط التتبع فور شحن الطلب",
+    printInvoiceDesc: "قم بطباعة هذه الفاتورة الرسمية أو حفظها كملف PDF لتسجيل حساباتك وحفظ معلومات الضمان.",
+    statusShipped: "تم الشحن",
+    statusDelivered: "تم التوصيل",
+    statusCancelled: "ملغي"
   },
   de: {
     orderConfirmed: "Bestellung Bestätigt",
@@ -85,7 +106,15 @@ const sTranslations = {
     billTo: "Rechnungsempfänger",
     paymentMethod: "Zahlungsmethode",
     creditCard: "Kreditkarte (Sicheres Stripe)",
-    complimentary: "Kostenlos"
+    complimentary: "Kostenlos",
+    variant: "100ml / Extrait de Parfum",
+    thanksPartnership: "Vielen Dank für Ihre geschäftliche Partnerschaft",
+    awaitingTracking: "Warten auf Versanddetails",
+    pendingTrackingLink: "Sendungsverfolgungslink ausstehend",
+    printInvoiceDesc: "Drucken Sie diese Handelsrechnung aus oder speichern Sie sie direkt als PDF-Datei für Ihre Buchhaltung und Unterlagen.",
+    statusShipped: "Versandt",
+    statusDelivered: "Geliefert",
+    statusCancelled: "Storniert"
   },
   fr: {
     orderConfirmed: "Commande Confirmée",
@@ -112,7 +141,15 @@ const sTranslations = {
     billTo: "Facturé À",
     paymentMethod: "Mode de Paiement",
     creditCard: "Carte Bancaire (Stripe Sécurisé)",
-    complimentary: "Offert"
+    complimentary: "Offert",
+    variant: "100ml / Extrait de Parfum",
+    thanksPartnership: "Merci pour votre partenariat commercial boutique",
+    awaitingTracking: "En attente des détails d'expédition",
+    pendingTrackingLink: "Lien de suivi en attente d'expédition",
+    printInvoiceDesc: "Imprimez cette facture commerciale ou enregistrez-la directement sous forme de fichier PDF pour votre comptabilité et vos dossiers.",
+    statusShipped: "Expédié",
+    statusDelivered: "Livré",
+    statusCancelled: "Annulé"
   },
   nl: {
     orderConfirmed: "Bestelling Bevestigd",
@@ -139,20 +176,41 @@ const sTranslations = {
     billTo: "Gefactureerd Aan",
     paymentMethod: "Betaalmethode",
     creditCard: "Creditcard (Stripe Beveiligd)",
-    complimentary: "Gratis"
+    complimentary: "Gratis",
+    variant: "100ml / Extrait de Parfum",
+    thanksPartnership: "Dank u voor uw zakelijke samenwerking",
+    awaitingTracking: "Wachtend op verzendgegevens",
+    pendingTrackingLink: "Trackinglink in afwachting van verzending",
+    printInvoiceDesc: "Druk deze commerciële factuur af of sla deze rechtstreeks op als PDF-bestand voor uw boekhouding en administratie.",
+    statusShipped: "Verzonden",
+    statusDelivered: "Geleverd",
+    statusCancelled: "Geannuleerd"
   }
 };
 
 export default function Success() {
   const [currentLang, setCurrentLang] = useState<Locale>('de');
   const [order, setOrder] = useState<any>(null);
-  const [email, setEmail] = useState<string>("billing@baristyle.com");
+  const [email, setEmail] = useState<string>("billing@baristore.com");
+  const [loadingTimeout, setLoadingTimeout] = useState<boolean>(false);
+
+  const companyName = process.env.NEXT_PUBLIC_COMPANY_NAME || "barigroup.net";
+  const companyAddress = process.env.NEXT_PUBLIC_COMPANY_ADDRESS || "Zeppelinstraße 62, 52068 Aachen, Germany";
+  const companyVatId = process.env.NEXT_PUBLIC_COMPANY_VAT_ID || "DE436103705";
+
+  const syncLang = () => {
+    const savedLang = localStorage.getItem('lang') as Locale;
+    if (savedLang && ['de', 'fr', 'en', 'ar', 'nl'].includes(savedLang)) {
+      setCurrentLang(savedLang);
+    }
+  };
 
   useEffect(() => {
-    // Determine language
+    syncLang();
+    window.addEventListener('language-changed', syncLang);
+
     const savedLang = localStorage.getItem('lang') as Locale;
     const activeLang = savedLang && ['de', 'fr', 'en', 'ar', 'nl'].includes(savedLang) ? savedLang : 'de';
-    setCurrentLang(activeLang);
 
     // Retrieve email from user session if logged in
     const savedUser = localStorage.getItem('user');
@@ -167,41 +225,192 @@ export default function Success() {
       }
     }
 
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    if (cart.length > 0) {
-      const orderId = 'BS-' + Math.floor(100000 + Math.random() * 90000);
-      const subtotal = cart.reduce((acc: number, item: any) => acc + (parseFloat(item.price) * item.quantity), 0);
-      const shipping = subtotal > 150 ? 0 : 15;
-      const total = subtotal + shipping;
-      
-      const newOrder = {
-        orderId,
-        date: new Date().toLocaleDateString(activeLang === 'ar' ? 'ar-SA' : 'de-DE', { year: 'numeric', month: 'long', day: 'numeric' }),
-        items: cart,
-        subtotal: subtotal.toFixed(2),
-        shipping: shipping === 0 ? '0.00' : shipping.toFixed(2),
-        total: total.toFixed(2),
-        status: 'Processing',
-        trackingNumber: 'DE' + Math.floor(100000000 + Math.random() * 900000000) + 'GLS'
-      };
+    // Try to fetch order using Stripe session_id if present in URL query
+    const searchParams = new URLSearchParams(window.location.search);
+    const sessionId = searchParams.get('session_id');
 
-      const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-      existingOrders.unshift(newOrder); // Prepend to history
-      localStorage.setItem('orders', JSON.stringify(existingOrders));
-      
-      setOrder(newOrder);
-      
-      // Clear cart
-      localStorage.removeItem('cart');
-      window.dispatchEvent(new Event('cart-updated'));
-    } else {
-      // Fetch latest order if page refreshed
-      const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-      if (existingOrders.length > 0) {
-        setOrder(existingOrders[0]);
+    const loadOrder = async () => {
+      if (sessionId) {
+        try {
+          const response = await axios.get(`${API_URL}/checkout/order/${sessionId}`);
+          const o = response.data;
+          const total = parseFloat(o.total_amount);
+          const shipping = parseFloat(o.shipping_amount);
+          const discount = o.discount_amount ? parseFloat(o.discount_amount) : 0;
+          const subtotal = total - shipping;
+
+          const formattedOrder = {
+            orderId: `ORD-${o.id.substring(0, 6).toUpperCase()}`,
+            db_id: o.id,
+            date: o.created_at ? new Date(o.created_at).toLocaleDateString(activeLang === 'ar' ? 'ar-SA' : 'de-DE', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString(),
+            createdAt: o.created_at || new Date().toISOString(),
+            items: o.items.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              sku: item.sku || 'N/A',
+              quantity: item.quantity,
+              price: parseFloat(item.unit_price).toFixed(2),
+            })),
+            subtotal: subtotal.toFixed(2),
+            shipping: shipping.toFixed(2),
+            total: total.toFixed(2),
+            status: o.status === 'PAID' ? 'Processing' : o.status === 'SHIPPED' ? 'Shipped' : o.status === 'DELIVERED' ? 'Delivered' : o.status === 'CANCELLED' ? 'Cancelled' : o.status,
+            trackingNumber: o.tracking_number || null,
+            shippingProvider: o.shipping_provider || null,
+            coupon_code: o.coupon_code || null,
+            discount_amount: discount,
+            customerName: o.customer_name || 'Valued Customer',
+            customerEmail: o.customer_email || 'N/A',
+            customerPhone: o.customer_phone || 'N/A',
+            shippingAddress: o.shipping_address || 'N/A'
+          };
+
+          setOrder(formattedOrder);
+          trackPurchase(o.id, total, o.currency || 'EUR', o.items);
+
+          // Save to local storage history to show on profile too
+          const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+          const exists = existingOrders.some((eo: any) => eo.orderId === formattedOrder.orderId);
+          if (!exists) {
+            existingOrders.unshift(formattedOrder);
+            localStorage.setItem('orders', JSON.stringify(existingOrders));
+          }
+
+          // Clear cart since transaction successfully fetched
+          localStorage.removeItem('cart');
+          window.dispatchEvent(new Event('cart-updated'));
+          return;
+        } catch (err) {
+          console.error("Failed to fetch order from session_id:", err);
+        }
       }
-    }
+
+      // Local storage fallback
+      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      if (cart.length > 0) {
+        const orderId = 'BS-' + Math.floor(100000 + Math.random() * 90000);
+        const subtotal = cart.reduce((acc: number, item: any) => acc + (parseFloat(item.price) * item.quantity), 0);
+        const shipping = subtotal > 150 ? 0 : 15;
+        const total = subtotal + shipping;
+        
+        const savedUser = localStorage.getItem('user');
+        let userObj: any = {};
+        if (savedUser) {
+          try {
+            userObj = JSON.parse(savedUser);
+          } catch (e) {}
+        }
+
+        const newOrder = {
+          orderId,
+          date: new Date().toLocaleDateString(activeLang === 'ar' ? 'ar-SA' : 'de-DE', { year: 'numeric', month: 'long', day: 'numeric' }),
+          createdAt: new Date().toISOString(),
+          items: cart,
+          subtotal: subtotal.toFixed(2),
+          shipping: shipping === 0 ? '0.00' : shipping.toFixed(2),
+          total: total.toFixed(2),
+          status: 'Processing',
+          trackingNumber: null,
+          shippingProvider: null,
+          coupon_code: null,
+          discount_amount: 0,
+          customerName: userObj.name || 'Valued Customer',
+          customerEmail: userObj.email || 'N/A',
+          customerPhone: userObj.phone || 'N/A',
+          shippingAddress: userObj.shipping_address || 'N/A'
+        };
+
+        const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+        existingOrders.unshift(newOrder); // Prepend to history
+        localStorage.setItem('orders', JSON.stringify(existingOrders));
+        
+        setOrder(newOrder);
+        trackPurchase(orderId, total, 'EUR', cart);
+        
+        // Clear cart
+        localStorage.removeItem('cart');
+        window.dispatchEvent(new Event('cart-updated'));
+      } else {
+        const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+        if (existingOrders.length > 0) {
+          setOrder(existingOrders[0]);
+        }
+      }
+    };
+
+    loadOrder();
+
+    // Fallback: if still loading after 6 seconds, show error state
+    const timer = setTimeout(() => {
+      setLoadingTimeout(true);
+    }, 6000);
+
+    return () => {
+      window.removeEventListener('language-changed', syncLang);
+      clearTimeout(timer);
+    };
   }, []);
+
+  // Google Customer Reviews Opt-in Integration
+  useEffect(() => {
+    if (!order) return;
+
+    // Set up the renderOptIn function for Google Customer Reviews
+    (window as any).renderOptIn = () => {
+      if (!(window as any).gapi) {
+        console.warn("Google API script not loaded yet");
+        return;
+      }
+      (window as any).gapi.load('surveyoptin', () => {
+        try {
+          (window as any).gapi.surveyoptin.render({
+            "merchant_id": 534425614,
+            "order_id": order.db_id || order.orderId,
+            "email": order.customerEmail || email,
+            "delivery_country": (() => {
+              const addr = order.shippingAddress || "";
+              const parts = addr.split(",");
+              const lastPart = parts[parts.length - 1]?.trim().toUpperCase() || "DE";
+              if (lastPart.length === 2) return lastPart;
+              const countryMap: Record<string, string> = {
+                'GERMANY': 'DE',
+                'DEUTSCHLAND': 'DE',
+                'FRANCE': 'FR',
+                'NETHERLANDS': 'NL',
+                'BELGIUM': 'BE',
+                'AUSTRIA': 'AT',
+                'SWITZERLAND': 'CH',
+                'SPAIN': 'ES',
+                'ITALY': 'IT',
+                'UNITED KINGDOM': 'GB',
+                'GREAT BRITAIN': 'GB',
+                'USA': 'US',
+                'UNITED STATES': 'US'
+              };
+              return countryMap[lastPart] || "DE";
+            })(),
+            "estimated_delivery_date": (() => {
+              const d = new Date(order.createdAt || new Date());
+              d.setDate(d.getDate() + 3); // Estimate 3 days delivery
+              const yyyy = d.getFullYear();
+              const mm = String(d.getMonth() + 1).padStart(2, '0');
+              const dd = String(d.getDate()).padStart(2, '0');
+              return `${yyyy}-${mm}-${dd}`;
+            })()
+          });
+        } catch (err) {
+          console.warn("Failed to render Google Customer Reviews surveyoptin:", err);
+        }
+      });
+    };
+
+    // Trigger immediately if gapi is already loaded
+    if ((window as any).gapi && (window as any).gapi.load) {
+      try {
+        (window as any).renderOptIn();
+      } catch (e) {}
+    }
+  }, [order, email]);
 
   const t = sTranslations[currentLang] || sTranslations.de;
   const isRtl = currentLang === 'ar';
@@ -211,6 +420,39 @@ export default function Success() {
   };
 
   if (!order) {
+    if (loadingTimeout) {
+      // No order found after timeout — show friendly fallback
+      return (
+        <div className="bg-[#FAF9F6] min-h-screen flex items-center justify-center px-4">
+          <div className="bg-white border border-stone-200 rounded-sm shadow-sm p-12 text-center max-w-md w-full">
+            <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-amber-100">
+              <Package className="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-stone-900 mb-3">
+              {currentLang === 'ar' ? 'لم يتم العثور على طلب' : currentLang === 'de' ? 'Keine Bestellung gefunden' : currentLang === 'fr' ? 'Aucune commande trouvée' : currentLang === 'nl' ? 'Geen bestelling gevonden' : 'No Order Found'}
+            </h2>
+            <p className="text-stone-500 text-sm leading-relaxed mb-8">
+              {currentLang === 'ar'
+                ? 'لم نتمكن من العثور على تفاصيل طلبك. إذا أتممت الدفع، تحقق من بريدك الإلكتروني للحصول على تأكيد الطلب.'
+                : currentLang === 'de'
+                ? 'Wir konnten keine Bestelldetails finden. Falls Sie bezahlt haben, prüfen Sie bitte Ihre E-Mail für die Bestellbestätigung.'
+                : currentLang === 'fr'
+                ? "Nous n'avons pas trouvé les détails de votre commande. Si vous avez payé, vérifiez votre e-mail pour la confirmation."
+                : currentLang === 'nl'
+                ? 'We konden geen bestelgegevens vinden. Als u heeft betaald, controleer dan uw e-mail voor de orderbevestiging.'
+                : 'We could not find your order details. If you completed payment, please check your email for an order confirmation.'}
+            </p>
+            <Link
+              href="/shop"
+              className="inline-flex items-center gap-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold uppercase tracking-widest px-8 py-4 rounded transition"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              {currentLang === 'ar' ? 'العودة للمتجر' : currentLang === 'de' ? 'Zurück zum Shop' : currentLang === 'fr' ? 'Retour à la boutique' : currentLang === 'nl' ? 'Terug naar de winkel' : 'Back to Shop'}
+            </Link>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="bg-[#FAF9F6] min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-stone-900"></div>
@@ -218,8 +460,10 @@ export default function Success() {
     );
   }
 
-  // Real GLS tracking link
-  const trackingLink = `https://www.gls-pakete.de/sendungsverfolgung?txtTrackingNumber=${order.trackingNumber}`;
+  // Real dynamic tracking link
+  const trackingLink = order.trackingNumber
+    ? (order.trackingNumber.startsWith('http') ? order.trackingNumber : `https://www.gls-pakete.de/sendungsverfolgung?txtTrackingNumber=${order.trackingNumber}`)
+    : '#';
 
   return (
     <div className="bg-[#FAF9F6] min-h-screen pb-24 text-stone-850" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -280,8 +524,11 @@ export default function Success() {
           <div className="lg:col-span-7 bg-white border border-stone-200 rounded-sm shadow-sm p-8 sm:p-10 print-full-width print-receipt-section">
             <div className="flex justify-between items-start border-b border-stone-150 pb-8 mb-8">
               <div>
-                <h2 className="text-2xl font-serif font-bold text-stone-900 tracking-wide">BARISTYLE</h2>
-                <p className="text-[10px] tracking-wider font-semibold text-stone-400 uppercase mt-1">Private Collection perfumes</p>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="bg-[#d40026] text-white px-2 py-0.5 rounded font-black text-sm tracking-tighter">BS</div>
+                  <h2 className="text-lg font-black text-stone-900 font-sans tracking-tight">Baristore</h2>
+                </div>
+                <p className="text-[9px] tracking-wider font-semibold text-stone-400 uppercase">Universal Marketplace & Retail</p>
               </div>
               <div className={isRtl ? 'text-left' : 'text-right'}>
                 <span className="inline-block text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-sm uppercase tracking-widest print:border-stone-300 print:text-black">
@@ -295,14 +542,22 @@ export default function Success() {
             <div className="grid grid-cols-2 gap-8 text-xs mb-8">
               <div>
                 <h4 className="font-bold text-stone-400 uppercase tracking-widest mb-2">{t.billTo}</h4>
-                <p className="font-bold text-stone-800">{email.split('@')[0].toUpperCase()}</p>
-                <p className="text-stone-500 mt-1">{email}</p>
-                <p className="text-stone-400 mt-0.5 font-mono">ID: {Math.floor(1000 + Math.random() * 9000)}</p>
+                <p className="font-bold text-stone-800">{order.customerName}</p>
+                <p className="text-stone-500 mt-1">{order.customerEmail}</p>
+                {order.customerPhone && order.customerPhone !== 'N/A' && (
+                  <p className="text-stone-400 mt-0.5">Phone: {order.customerPhone}</p>
+                )}
+                {order.shippingAddress && order.shippingAddress !== 'N/A' && (
+                  <p className="text-stone-450 mt-1.5 leading-relaxed font-normal">
+                    <strong>{isRtl ? 'عنوان الشحن:' : 'Lieferadresse:'}</strong><br/>
+                    {order.shippingAddress}
+                  </p>
+                )}
               </div>
               <div className={isRtl ? 'text-left' : 'text-right'}>
                 <h4 className="font-bold text-stone-400 uppercase tracking-widest mb-2">{t.paymentMethod}</h4>
                 <p className="font-bold text-stone-850">{t.creditCard}</p>
-                <p className="text-stone-500 mt-1 font-mono">{t.date}: {order.date}</p>
+                <p className="text-stone-500 mt-1 font-mono">{t.date}: {order.createdAt ? new Date(order.createdAt).toLocaleDateString(currentLang === 'ar' ? 'ar-SA' : 'de-DE', { year: 'numeric', month: 'long', day: 'numeric' }) : order.date}</p>
               </div>
             </div>
 
@@ -321,7 +576,7 @@ export default function Success() {
                     <tr key={item.id} className="text-stone-800">
                       <td className="py-4">
                         <div className="font-bold text-stone-900">{item.name}</div>
-                        <div className="text-[10px] text-stone-400 font-normal uppercase tracking-wider mt-0.5">100ml / Extrait de Parfum</div>
+                        <div className="text-[10px] text-stone-400 font-normal uppercase tracking-wider mt-0.5">{t.variant}</div>
                       </td>
                       <td className="py-4 text-center font-bold text-stone-600">{item.quantity}</td>
                       <td className={`py-4 font-mono font-bold ${isRtl ? 'text-left' : 'text-right'}`}>€{parseFloat(item.price).toFixed(2)}</td>
@@ -357,8 +612,8 @@ export default function Success() {
 
             {/* Professional Seal / Footer for Invoice */}
             <div className="mt-12 pt-8 border-t border-stone-100 text-[10px] text-stone-400 text-center uppercase tracking-widest leading-relaxed">
-              <p>BariStyle Global Gmbh • Grasse / Berlin • VAT ID DE 987654321</p>
-              <p className="mt-1 font-mono text-[9px]">Thank you for your boutique retail partnership</p>
+              <p>{companyName} • {companyAddress} • USt-IdNr.: {companyVatId} • LUCID: DE4769331655434</p>
+              <p className="mt-1 font-mono text-[9px]">{t.thanksPartnership}</p>
             </div>
           </div>
 
@@ -381,32 +636,44 @@ export default function Success() {
               <div className="space-y-5 text-xs mb-8">
                 <div className="flex justify-between py-1.5 border-b border-stone-50">
                   <span className="font-medium text-stone-450 uppercase tracking-wider">{t.courier}</span>
-                  <span className="font-bold text-stone-850">GLS Premium Express (Europe)</span>
+                  <span className="font-bold text-stone-850">{order.shippingProvider || 'GLS Premium Express (Europe)'}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-stone-50">
                   <span className="font-medium text-stone-450 uppercase tracking-wider">{t.status}</span>
-                  <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 border border-amber-200 rounded text-[10px] uppercase">
-                    <Package className="w-3.5 h-3.5" /> {t.processing}
+                  <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 border rounded text-[10px] uppercase ${
+                    order.status === 'Shipped'
+                      ? 'text-emerald-750 bg-emerald-50 border-emerald-200'
+                      : order.status === 'Delivered'
+                      ? 'text-blue-750 bg-blue-50 border-blue-200'
+                      : 'text-amber-700 bg-amber-50 border-amber-200'
+                  }`}>
+                    <Package className="w-3.5 h-3.5" /> {order.status === 'Shipped' || order.status === 'SHIPPED' ? t.statusShipped : order.status === 'Delivered' || order.status === 'DELIVERED' ? t.statusDelivered : order.status === 'Cancelled' || order.status === 'CANCELLED' ? t.statusCancelled : t.processing}
                   </span>
                 </div>
                 <div className="flex flex-col gap-2 pt-1">
                   <span className="font-medium text-stone-450 uppercase tracking-wider">{t.trackingNum}</span>
                   <div className="bg-stone-50 p-3.5 border border-stone-150 rounded font-mono font-bold text-stone-700 text-center tracking-wider text-sm">
-                    {order.trackingNumber}
+                    {order.trackingNumber || t.awaitingTracking}
                   </div>
                 </div>
               </div>
 
               {/* INTERACTIVE TRACKING BUTTON (رابط الشحن) */}
-              <a 
-                href={trackingLink} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-full py-4 bg-stone-900 hover:bg-black text-white rounded text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition shadow-md group cursor-pointer"
-              >
-                <span>{t.trackShipment}</span>
-                <ExternalLink className="w-4 h-4 text-stone-400 group-hover:text-white transition" />
-              </a>
+              {order.trackingNumber ? (
+                <a 
+                  href={trackingLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition shadow-md group cursor-pointer"
+                >
+                  <span>{t.trackShipment}</span>
+                  <ExternalLink className="w-4 h-4 text-emerald-200 group-hover:text-white transition" />
+                </a>
+              ) : (
+                <div className="w-full py-4 bg-stone-100 text-stone-450 rounded text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 border border-stone-200 select-none">
+                  <span>{t.pendingTrackingLink}</span>
+                </div>
+              )}
             </div>
 
             {/* PRINT COMMERCIAL INVOICE ACTION CARD */}
@@ -416,9 +683,7 @@ export default function Success() {
               </div>
               <h4 className="font-serif font-bold text-stone-900 text-base mb-2">{t.downloadInvoice}</h4>
               <p className="text-xs text-stone-500 leading-relaxed mb-6 max-w-xs">
-                {isRtl 
-                  ? "قم بطباعة هذه الفاتورة الرسمية أو حفظها كملف PDF لتسجيل حساباتك وحفظ معلومات الضمان."
-                  : "Print this commercial invoice or save it directly as a PDF file for your corporate bookkeeping and records."}
+                {t.printInvoiceDesc}
               </p>
               
               <button 
@@ -435,6 +700,13 @@ export default function Success() {
         </div>
 
       </div>
+
+      {order && (
+        <Script
+          src="https://apis.google.com/js/platform.js?onload=renderOptIn"
+          strategy="afterInteractive"
+        />
+      )}
     </div>
   );
 }

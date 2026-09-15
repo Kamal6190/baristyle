@@ -16,8 +16,104 @@
   /* Disabled dark mode to maintain luxury brand theme */
 }
 
+html,
 body {
-  background: #FAF9F6;
-  color: #1c1917; /* stone-900 */
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+body {
+  background: #ffffff;
+  color: #1a1a1a;
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Marquee auto-scroll animation for categories */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.333%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee linear infinite;
+}
+
+/* ==========================================================================
+   BS Baristore — Bari AI Assistant Widget Luxury Custom Styles
+   ========================================================================== */
+.bari-widget-wrap {
+  bottom: 24px !important;
+  right: 24px !important;
+  z-index: 99990 !important;
+}
+
+.bari-widget-trigger {
+  width: 60px !important;
+  height: 60px !important;
+  background: linear-gradient(135deg, #d40026 0%, #99001a 100%) !important;
+  box-shadow: 0 10px 25px rgba(212, 0, 38, 0.4), 0 0 15px rgba(212, 0, 38, 0.25) !important;
+  border: 2px solid rgba(255, 255, 255, 0.25) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.bari-widget-trigger:hover {
+  transform: scale(1.08) translateY(-3px) !important;
+  box-shadow: 0 14px 30px rgba(212, 0, 38, 0.55), 0 0 25px rgba(212, 0, 38, 0.4) !important;
+}
+
+.bari-chat-window {
+  bottom: 96px !important;
+  right: 24px !important;
+  border: 1px solid rgba(212, 0, 38, 0.25) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 35px rgba(212, 0, 38, 0.15) !important;
+  border-radius: 20px !important;
+  z-index: 99995 !important;
+}
+
+.bari-chat-header {
+  background: linear-gradient(135deg, #182030 0%, #0f172a 100%) !important;
+  border-bottom: 1px solid rgba(212, 0, 38, 0.2) !important;
+}
+
+.bari-avatar {
+  background: linear-gradient(135deg, #d40026, #7a0014) !important;
+  box-shadow: 0 4px 14px rgba(212, 0, 38, 0.45) !important;
+}
+
+.bari-msg-user {
+  background: linear-gradient(135deg, #d40026 0%, #a1001d 100%) !important;
+  box-shadow: 0 4px 12px rgba(212, 0, 38, 0.25) !important;
+}
+
+.bari-pill:hover {
+  background: rgba(212, 0, 38, 0.2) !important;
+  border-color: #d40026 !important;
+  color: #ffffff !important;
+}
+
+.bari-input-box:focus-within {
+  border-color: #d40026 !important;
+  box-shadow: 0 0 0 2px rgba(212, 0, 38, 0.3) !important;
+}
+
+.bari-send-btn {
+  background: #d40026 !important;
+}
+
+.bari-send-btn:hover {
+  background: #b0001e !important;
+  transform: scale(1.05) !important;
+}
+
+@media (max-width: 480px) {
+  .bari-widget-wrap {
+    bottom: 20px !important;
+    right: 20px !important;
+  }
+}
+

@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Trash2, ShieldCheck, Lock } from "lucide-react";
+import { ArrowLeft, Trash2, ShieldCheck, Lock, Zap, Truck, Check, ChevronDown, ChevronUp, Gift, Clock, Sparkles, ShoppingBag } from "lucide-react";
 import axios from "axios";
 import { translations, Locale } from "../../utils/i18n";
 import { formatPrice, getActiveCurrency } from "../../utils/currency";
@@ -21,6 +21,12 @@ export default function Checkout() {
   const [selectedShippingMethod, setSelectedShippingMethod] = useState<any | null>(null);
   const [buy2get1Config, setBuy2get1Config] = useState<any>({ active: true, category_id: '' });
   const [productDetails, setProductDetails] = useState<Record<string, any>>({});
+
+  // Checkout Conversion Booster States
+  const [giftWrapOption, setGiftWrapOption] = useState(false);
+  const [giftMessage, setGiftMessage] = useState('');
+  const [mobileOrderSummaryOpen, setMobileOrderSummaryOpen] = useState(false);
+  const [cutoffCountdown, setCutoffCountdown] = useState<{ hours: number; minutes: number }>({ hours: 4, minutes: 15 });
 
   // Coupon State
   const [couponCode, setCouponCode] = useState("");
@@ -80,6 +86,37 @@ export default function Checkout() {
     window.addEventListener('currency-changed', handleCurrencyChange);
     return () => window.removeEventListener('currency-changed', handleCurrencyChange);
   }, []);
+
+  // Live countdown to DHL daily dispatch cutoff (16:00 CET)
+  useEffect(() => {
+    const updateCutoff = () => {
+      const now = new Date();
+      const cutoff = new Date();
+      if (now.getHours() >= 16) {
+        cutoff.setDate(cutoff.getDate() + 1);
+      }
+      cutoff.setHours(16, 0, 0, 0);
+      const diff = cutoff.getTime() - now.getTime();
+      if (diff > 0) {
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        setCutoffCountdown({ hours: h, minutes: m });
+      }
+    };
+    updateCutoff();
+    const timer = setInterval(updateCutoff, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getEstimatedDeliveryDate = () => {
+    const date = new Date();
+    let daysToAdd = date.getHours() >= 16 ? 3 : 2;
+    date.setDate(date.getDate() + daysToAdd);
+    if (date.getDay() === 0) date.setDate(date.getDate() + 1);
+    const localeStr = currentLang === 'ar' ? 'ar-EG' : 'de-DE';
+    const opts: any = { weekday: 'short', day: 'numeric', month: 'short' };
+    return date.toLocaleDateString(localeStr, opts);
+  };
 
   const syncLang = () => {
     const savedLang = localStorage.getItem('lang') as Locale;
@@ -466,8 +503,20 @@ export default function Checkout() {
       const customerEmailToUse = shippingAddress.email.trim() || user?.email || couponEmail || undefined;
 
       const endpoint = paymentMethod === 'paypal' ? '/checkout/create-paypal-order' : '/checkout/create-session';
+      
+      const itemsToSend = [...cart];
+      if (giftWrapOption) {
+        itemsToSend.push({
+          id: 'gift-wrap',
+          name: currentLang === 'ar' ? 'تغليف هدايا ملكي وبطاقة تهنئة' : 'Luxus-Geschenkverpackung & Grußkarte',
+          price: '4.99',
+          quantity: 1,
+          image_url: '/gift.png'
+        });
+      }
+
       const response = await axios.post(`${apiUrl}${endpoint}`, {
-        items: cart,
+        items: itemsToSend,
         coupon_code: appliedCoupon ? appliedCoupon.code : undefined,
         order_type: isB2B ? 'Wholesale' : 'Retail',
         shipping_fee: shipping,
@@ -496,6 +545,78 @@ export default function Checkout() {
       } else {
         alert(currentLang === 'ar' ? "فشل بدء عملية الدفع والشراء. يرجى المحاولة مرة أخرى." : "Failed to initiate checkout. Please try again.");
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Express 1-Click Checkout: Bypasses form barriers, launches PayPal / Stripe Express immediately
+  const handleExpressOneClick = async (provider: 'paypal' | 'klarna' | 'card') => {
+    setAgreedToTerms(true);
+    setTermsError('');
+
+    if (provider === 'paypal') {
+      setPaymentMethod('paypal');
+    } else {
+      setPaymentMethod('stripe');
+      setPreferredStripeMethod(provider);
+    }
+
+    setLoading(true);
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+    try {
+      const fullStreet = shippingAddress.houseNumber
+        ? `${shippingAddress.street} ${shippingAddress.houseNumber}`.trim()
+        : shippingAddress.street.trim();
+
+      const formattedAddress = [
+        fullStreet,
+        shippingAddress.postalCode,
+        shippingAddress.city,
+        customerCountry
+      ].filter(Boolean).join(', ');
+
+      const fullName = `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim();
+      const customerEmailToUse = shippingAddress.email.trim() || user?.email || couponEmail || undefined;
+
+      const endpoint = provider === 'paypal' ? '/checkout/create-paypal-order' : '/checkout/create-session';
+      
+      const itemsToSend = [...cart];
+      if (giftWrapOption) {
+        itemsToSend.push({
+          id: 'gift-wrap',
+          name: currentLang === 'ar' ? 'تغليف هدايا ملكي وبطاقة تهنئة' : 'Luxus-Geschenkverpackung & Grußkarte',
+          price: '4.99',
+          quantity: 1,
+          image_url: '/gift.png'
+        });
+      }
+
+      const response = await axios.post(`${apiUrl}${endpoint}`, {
+        items: itemsToSend,
+        coupon_code: appliedCoupon ? appliedCoupon.code : undefined,
+        order_type: isB2B ? 'Wholesale' : 'Retail',
+        shipping_fee: shipping,
+        shipping_name: selectedShippingMethod ? selectedShippingMethod.name : 'Standard Shipping',
+        email: customerEmailToUse,
+        locale: currentLang,
+        customer_country: customerCountry,
+        vat_number: vatNumber,
+        is_reverse_charge: customerCountry !== 'DE' && ((isB2B && (!!vatNumber || !!user?.vatNumber)) || vatValidationResult?.valid === true),
+        preferred_payment_method: provider,
+        customer_name: fullName || undefined,
+        customer_email: customerEmailToUse,
+        customer_phone: shippingAddress.phone.trim() || undefined,
+        shipping_address: formattedAddress || undefined,
+      });
+      
+      if (response.data.url) {
+        window.location.href = response.data.url;
+      }
+    } catch (error: any) {
+      console.error("Express checkout failed", error);
+      const serverMsg = error.response?.data?.message;
+      alert(serverMsg || (currentLang === 'ar' ? "فشل بدء الدفع السريع. يرجى المحاولة عبر الزر العادي." : "Express checkout failed. Please use standard checkout."));
     } finally {
       setLoading(false);
     }
@@ -657,9 +778,14 @@ export default function Checkout() {
     ? discountedSubtotal
     : discountedSubtotal / (1 + defaultRate / 100);
 
-  const vatAmount = netDiscountedSubtotal * (vatRate / 100);
+  const giftWrapCost = giftWrapOption ? 4.99 : 0;
+  const total = netDiscountedSubtotal + shipping + vatAmount + giftWrapCost;
 
-  const total = netDiscountedSubtotal + shipping + vatAmount;
+  // Free shipping progress calculation (Free above 50 €)
+  const freeShippingThreshold = 50;
+  const isFreeShipping = discountedSubtotal >= freeShippingThreshold;
+  const freeShippingRemaining = Math.max(0, freeShippingThreshold - discountedSubtotal);
+  const freeShippingProgress = Math.min(100, Math.round((discountedSubtotal / freeShippingThreshold) * 100));
 
   // VAT label — show reverse charge or country rate
   const vatLabelText = isReverseCharge
@@ -680,7 +806,7 @@ export default function Checkout() {
   }[currentLang] || `B2B Minimum Order Notice: The required minimum order amount is ${formatPrice(minB2BAmount)}. Your current cart total is ${formatPrice(subtotal)}. Please add more items to proceed.`;
 
   return (
-    <div className="bg-[#FAF9F6] min-h-screen pb-24" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className="bg-[#FAF9F6] min-h-screen pb-36 lg:pb-24" dir={isRtl ? 'rtl' : 'ltr'}>
       {/* Top Banner */}
       {/* Top Trust & Security Header Bar */}
       <div className="bg-stone-900 text-white text-xs py-3 px-4 shadow-sm border-b border-stone-800">
@@ -704,12 +830,146 @@ export default function Checkout() {
       </div>
 
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 sm:mt-12">
-        <Link href="/shop" className="inline-flex items-center gap-2 text-xs font-semibold text-stone-500 hover:text-stone-900 transition mb-8 uppercase tracking-widest">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 sm:mt-10">
+        <Link href="/shop" className="inline-flex items-center gap-2 text-xs font-semibold text-stone-500 hover:text-stone-900 transition mb-6 uppercase tracking-widest">
           <ArrowLeft className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} /> {t.continueShopping}
         </Link>
         
-        <h1 className="text-3xl sm:text-4xl font-serif font-bold text-stone-900 mb-8 sm:mb-12">{t.yourShoppingBag}</h1>
+        {/* ── Checkout Stepper Progress ── */}
+        <div className="mb-6 sm:mb-8 max-w-xl mx-auto">
+          <div className="flex items-center justify-between relative">
+            <Link href="/cart" className="flex items-center gap-1.5 sm:gap-2 group">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                ✓
+              </div>
+              <span className="text-xs sm:text-sm font-semibold text-stone-700 group-hover:text-black">
+                {currentLang === 'ar' ? 'السلة' : 'Warenkorb'}
+              </span>
+            </Link>
+
+            <div className="flex-1 h-0.5 bg-stone-900 mx-2 sm:mx-4"></div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#d40026] text-white flex items-center justify-center text-xs font-bold shadow-md ring-4 ring-red-100">
+                2
+              </div>
+              <span className="text-xs sm:text-sm font-bold text-stone-900">
+                {currentLang === 'ar' ? 'العنوان والدفع' : 'Kasse & Zahlung'}
+              </span>
+            </div>
+
+            <div className="flex-1 h-0.5 bg-stone-200 mx-2 sm:mx-4"></div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2 opacity-40">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-stone-200 text-stone-500 flex items-center justify-center text-xs font-bold">
+                3
+              </div>
+              <span className="text-xs sm:text-sm font-medium text-stone-400">
+                {currentLang === 'ar' ? 'تأكيد الطلب' : 'Bestätigung'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Mobile Collapsible Order Summary Bar ── */}
+        {cart.length > 0 && (
+          <div className="lg:hidden bg-white border border-stone-200 rounded-xl p-4 mb-6 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setMobileOrderSummaryOpen(!mobileOrderSummaryOpen)}
+              className="w-full flex items-center justify-between text-xs font-bold text-stone-900"
+            >
+              <span className="flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-stone-600" />
+                <span>
+                  {mobileOrderSummaryOpen
+                    ? (currentLang === 'ar' ? 'إخفاء ملخص المنتجات' : 'Bestellübersicht ausblenden')
+                    : (currentLang === 'ar' ? `عرض تفاصيل الطلب (${cart.reduce((a, b) => a + b.quantity, 0)} منتج)` : `Bestellübersicht anzeigen (${cart.reduce((a, b) => a + b.quantity, 0)} Artikel)`)}
+                </span>
+                {mobileOrderSummaryOpen ? <ChevronUp className="w-4 h-4 text-stone-400" /> : <ChevronDown className="w-4 h-4 text-stone-400" />}
+              </span>
+              <span className="text-sm font-black text-stone-950 font-mono">
+                {formatPrice(total)}
+              </span>
+            </button>
+
+            {mobileOrderSummaryOpen && (
+              <div className="mt-4 pt-4 border-t border-stone-100 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                {cart.map((item) => (
+                  <div key={item.id} className="flex items-center gap-3">
+                    <div className="relative w-12 h-12 rounded-lg bg-stone-50 border border-stone-200 overflow-hidden flex-shrink-0">
+                      <img
+                        src={resolveImageUrl(item.image_url) || "https://images.unsplash.com/photo-1594035910387-fea47794261f?q=80&w=200&auto=format&fit=crop"}
+                        alt={item.name}
+                        className="w-full h-full object-contain p-1"
+                      />
+                      <span className="absolute -top-1 -right-1 bg-stone-900 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                        {item.quantity}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-semibold text-stone-900 truncate">{item.name}</h4>
+                      <span className="text-[10px] text-stone-400 font-mono">{formatPrice(item.price)} × {item.quantity}</span>
+                    </div>
+                    <span className="text-xs font-bold text-stone-900 font-mono">
+                      {formatPrice(parseFloat(item.price) * item.quantity)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Free Shipping Progress Bar ── */}
+        {cart.length > 0 && (
+          <div className={`p-4 rounded-xl border mb-6 transition-all ${
+            isFreeShipping 
+              ? 'bg-emerald-50/90 border-emerald-200 text-emerald-900 shadow-2xs' 
+              : 'bg-stone-50/90 border-stone-200 text-stone-800'
+          }`}>
+            <div className="flex items-center justify-between text-xs font-bold mb-2">
+              <span className="flex items-center gap-2">
+                <Truck className={`w-4 h-4 ${isFreeShipping ? 'text-emerald-600' : 'text-blue-600'}`} />
+                {isFreeShipping ? (
+                  <span className="text-emerald-700">
+                    {currentLang === 'ar' ? '🎉 مبارك! لقد حصلت على شحن مجاني عبر DHL!' : '🎉 Kostenloser DHL-Versand freigeschaltet!'}
+                  </span>
+                ) : (
+                  <span>
+                    {currentLang === 'ar' 
+                      ? `أضف بقيمة ${formatPrice(freeShippingRemaining)} للحصول على شحن مجاني!` 
+                      : `Noch ${formatPrice(freeShippingRemaining)} bis zum KOSTENLOSEN DHL-Versand!`}
+                  </span>
+                )}
+              </span>
+              <span className="text-[10px] font-mono text-stone-500 font-bold">
+                {freeShippingProgress}%
+              </span>
+            </div>
+
+            <div className="w-full h-2 bg-stone-200/80 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all duration-700 ${
+                  isFreeShipping 
+                    ? 'bg-emerald-500' 
+                    : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                }`}
+                style={{ width: `${freeShippingProgress}%` }}
+              />
+            </div>
+
+            {!isFreeShipping && (
+              <div className="mt-2 text-right">
+                <Link href="/shop" className="text-[11px] font-bold text-stone-900 hover:text-[#d40026] underline transition">
+                  {currentLang === 'ar' ? '+ أضف منتجاً آخر من المتجر' : '+ Weiter einkaufen'}
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+        
+        <h1 className="text-2xl sm:text-3xl font-serif font-bold text-stone-900 mb-6 sm:mb-8">{t.yourShoppingBag}</h1>
 
         {isSuperAdmin && (
           <div className="mb-8 p-4 bg-emerald-950 border border-emerald-700/60 rounded-xl text-emerald-100 flex items-center justify-between shadow-sm">
@@ -804,6 +1064,53 @@ export default function Checkout() {
                   </button>
                 </div>
               ))}
+
+              {/* ── Express Checkout Quick-Pay Section ── */}
+              <div className="bg-stone-900 p-5 sm:p-6 rounded-2xl shadow-lg text-white mb-6 border border-stone-800 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-3.5">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-400 fill-amber-400 animate-pulse" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                      {currentLang === 'ar' ? 'الدفع السريع بنقرة واحدة (Express Checkout)' : 'Express Checkout (1-Klick)'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-stone-400 flex items-center gap-1 font-mono">
+                    <Lock className="w-3 h-3 text-emerald-400" /> SSL 256-Bit
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* PayPal Express Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleExpressOneClick('paypal')}
+                    disabled={loading || isUnderB2BMinimum}
+                    className="w-full bg-[#FFC439] hover:bg-[#F4B41A] text-[#003087] font-black py-3.5 px-4 rounded-xl text-sm flex items-center justify-center gap-2 shadow-sm transition transform active:scale-98 cursor-pointer disabled:opacity-50"
+                  >
+                    <span className="font-bold text-xs uppercase tracking-wider">{currentLang === 'ar' ? 'دفع سريع عبر' : 'Direkt mit'}</span>
+                    <img src="/paypal.svg" alt="PayPal" className="h-5 w-auto" />
+                  </button>
+
+                  {/* Klarna Rechnung Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleExpressOneClick('klarna')}
+                    disabled={loading || isUnderB2BMinimum}
+                    className="w-full bg-[#FFB3C7] hover:bg-[#FFA5BD] text-stone-950 font-black py-3.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition transform active:scale-98 cursor-pointer disabled:opacity-50"
+                  >
+                    <span className="font-bold">{currentLang === 'ar' ? 'ادفع بعد الاستلام' : 'Rechnungskauf'}</span>
+                    <span className="bg-stone-950 text-white text-[10px] px-2 py-0.5 rounded font-black">Klarna.</span>
+                  </button>
+                </div>
+
+                <div className="relative flex py-2 items-center mt-3">
+                  <div className="flex-grow border-t border-stone-800"></div>
+                  <span className="flex-shrink mx-3 text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                    {currentLang === 'ar' ? 'أو أدخل عنوان الشحن بالأسفل' : 'Oder regulär mit Adresse fortfahren'}
+                  </span>
+                  <div className="flex-grow border-t border-stone-800"></div>
+                </div>
+              </div>
 
               {/* ── Lieferadresse & Kontaktdaten (Customer & Shipping Address) ── */}
               <div id="shipping-address-form" className="bg-white p-5 sm:p-7 border border-stone-200 rounded-xl shadow-sm">
@@ -1014,45 +1321,37 @@ export default function Checkout() {
               <div className="bg-white p-5 sm:p-8 border border-stone-200 rounded-xl shadow-sm lg:sticky lg:top-8">
                 <h2 className="text-xl font-serif font-bold text-stone-900 mb-4">{t.orderSummary}</h2>
 
-                {/* ── Estimated Delivery & Trust Badge ── */}
-                <div className="bg-stone-50 border border-stone-200/80 rounded-xl p-3.5 mb-5 space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-stone-800">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {/* ── Estimated Delivery & Trust Badge (Live DHL Countdown) ── */}
+                <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3.5 mb-5 space-y-2.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-stone-900">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
                     <span>
                       {isAllDigitalCart ? (
-                        currentLang === 'ar' ? '⚡ تسليم المنتجات الرقمية:' :
-                        currentLang === 'de' ? '⚡ Digitaler E-Mail Versand:' :
-                        '⚡ Digital Delivery:'
+                        currentLang === 'ar' ? '⚡ تسليم رقمي فوري عبر البريد' : '⚡ Sofortige digitale Bereitstellung'
                       ) : (
-                        currentLang === 'ar' ? '📦 موعد التوصيل المتوقع:' :
-                        currentLang === 'de' ? '📦 Voraussichtliche Lieferung:' :
-                        currentLang === 'fr' ? '📦 Livraison estimée :' :
-                        currentLang === 'nl' ? '📦 Verwachte levering:' :
-                        '📦 Estimated Delivery:'
-                      )}
-                    </span>
-                    <span className="text-emerald-700 font-extrabold ml-auto">
-                      {isAllDigitalCart ? (
-                        currentLang === 'ar' ? '⚡ فوري بعد الشراء مباشرة' :
-                        currentLang === 'de' ? '⚡ Sofort per E-Mail nach Zahlung' :
-                        '⚡ Instant via E-Mail'
-                      ) : (
-                        (() => {
-                          const now = new Date();
-                          const start = new Date(now.setDate(now.getDate() + 2));
-                          const end = new Date(now.setDate(now.getDate() + 2));
-                          const opts: any = { month: 'short', day: 'numeric' };
-                          return `${start.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'de-DE', opts)} - ${end.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'de-DE', opts)}`;
-                        })()
+                        currentLang === 'ar' 
+                          ? `اطلب خلال ${cutoffCountdown.hours} س و ${cutoffCountdown.minutes} د للشحن اليوم!` 
+                          : `Bestellen Sie in ${cutoffCountdown.hours} Std. ${cutoffCountdown.minutes} Min. für Versand HEUTE!`
                       )}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1.5 border-t border-stone-200/60">
-                    <span className="flex items-center gap-1 font-medium text-amber-600">
+
+                  <div className="flex items-center justify-between text-xs pt-2 border-t border-amber-200/60">
+                    <span className="text-stone-600 flex items-center gap-1.5 font-medium">
+                      <Truck className="w-3.5 h-3.5 text-stone-800" />
+                      {currentLang === 'ar' ? 'التسليم المتوقع:' : 'Voraussichtliche Lieferung:'}
+                    </span>
+                    <span className="font-bold text-stone-950 font-mono text-xs">
+                      {isAllDigitalCart ? (currentLang === 'ar' ? 'فوري بعد الدفع' : 'Sofort nach Zahlung') : `${getEstimatedDeliveryDate()} (DHL)`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-stone-500 pt-1.5 border-t border-amber-200/60">
+                    <span className="flex items-center gap-1 font-bold text-amber-600">
                       ⭐⭐⭐⭐⭐ <strong className="text-stone-800">4.9/5</strong>
                     </span>
-                    <span className="text-stone-400 font-medium">
-                      {currentLang === 'ar' ? '1,280+ تقييم موثق' : '1.280+ Kundenbewertungen'}
+                    <span className="text-stone-500 font-medium">
+                      {currentLang === 'ar' ? '1,280+ عميل موثق' : '1.280+ zufriedene Kunden'}
                     </span>
                   </div>
                 </div>
@@ -1081,18 +1380,28 @@ export default function Checkout() {
                   </div>
                 )}
 
-                <div className="space-y-4 text-sm text-stone-600 border-b border-stone-200 pb-6 mb-6">
+                <div className="space-y-3.5 text-sm text-stone-600 border-b border-stone-200 pb-5 mb-5">
                   <div className="flex justify-between">
                     <span>{t.subtotal}</span>
-                    <span>{formatPrice(subtotal)}</span>
+                    <span className="font-semibold text-stone-900">{formatPrice(subtotal)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>{t.shippingLabel}</span>
-                    <span>{shipping === 0 ? t.complimentary : formatPrice(shipping)}</span>
+                    <span className="font-semibold text-stone-900">{shipping === 0 ? t.complimentary : formatPrice(shipping)}</span>
                   </div>
-                  {shipping > 0 && (
-                    <div className="text-xs text-stone-400 mt-2 italic">
-                      {t.spendMoreForFreeShipping.replace('{diff}', formatPrice(150 - subtotal))}
+                  {shipping > 0 && freeShippingRemaining > 0 && (
+                    <div className="text-xs text-stone-400 mt-1 italic">
+                      {t.spendMoreForFreeShipping.replace('{diff}', formatPrice(freeShippingRemaining))}
+                    </div>
+                  )}
+                  {/* Gift Wrap Cost Line */}
+                  {giftWrapOption && (
+                    <div className="flex justify-between text-stone-800 font-semibold bg-amber-50/70 p-2 rounded-lg border border-amber-200/60">
+                      <span className="flex items-center gap-1.5 text-xs text-amber-900">
+                        <Gift className="w-3.5 h-3.5 text-amber-700" />
+                        {currentLang === 'ar' ? 'تغليف هدايا ملكي وبطاقة' : 'Geschenkverpackung & Karte'}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-amber-900">{formatPrice(4.99)}</span>
                     </div>
                   )}
                   {/* Dynamic VAT calculation view */}
@@ -1407,6 +1716,50 @@ export default function Checkout() {
                   </div>
                 )}
 
+                {/* ── One-Click Order Bump: Luxury Gift Packaging & Greeting Card ── */}
+                <div className={`p-4 rounded-xl border transition-all mb-6 ${
+                  giftWrapOption 
+                    ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-400/20 shadow-xs' 
+                    : 'bg-stone-50/70 border-stone-200 hover:border-stone-300'
+                }`}>
+                  <label className="flex items-start gap-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={giftWrapOption}
+                      onChange={(e) => setGiftWrapOption(e.target.checked)}
+                      className="mt-1 w-4 h-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900 cursor-pointer"
+                    />
+                    <div className="flex-1 text-xs">
+                      <div className="flex items-center justify-between font-bold text-stone-900">
+                        <span className="flex items-center gap-1.5">
+                          <span>🎁</span>
+                          {currentLang === 'ar' ? 'تغليف هدايا ملكي فاخر مع كرت تهنئة' : 'Als Geschenk verpacken (+4,99 €)'}
+                        </span>
+                        <span className="font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
+                          +4,99 €
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-stone-500 mt-1 leading-snug">
+                        {currentLang === 'ar' 
+                          ? 'صندوق هدايا فاخر مع شريط ساتان وبطاقة تهنئة مطبوعة خاصة بالمستلم.' 
+                          : 'Edle Geschenkbox mit Satinband & individueller Grußkarte für den Beschenkten.'}
+                      </p>
+                      {giftWrapOption && (
+                        <div className="mt-2.5 animate-in slide-in-from-top-1 duration-150">
+                          <input
+                            type="text"
+                            value={giftMessage}
+                            onChange={(e) => setGiftMessage(e.target.value)}
+                            placeholder={currentLang === 'ar' ? 'اكتب رسالة الإهداء هنا (اختياري)...' : 'Ihre persönliche Grußbotschaft (optional)...'}
+                            className="w-full px-3 py-2 text-xs rounded-lg border border-amber-300 bg-white focus:outline-none focus:border-stone-900"
+                            maxLength={180}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </div>
+
                 {/* Payment Method Selector */}
                 <div className="mb-6 border-t border-stone-100 pt-6">
                   <h3 className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-3">
@@ -1436,13 +1789,14 @@ export default function Checkout() {
                           )}
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                            Klarna
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-bold text-stone-900">Klarna</span>
                             <span className="bg-pink-100 text-pink-700 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">Rechnung / Raten</span>
-                          </span>
+                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold px-1.5 py-0.5 rounded">0% Zinsen · In 30 Tagen</span>
+                          </div>
                           <span className="text-[10px] text-stone-500 font-medium mt-0.5">
-                            {currentLang === 'ar' ? 'ادفع بعد الاستلام أو قسّط على دفعات عبر Klarna' : 
-                             currentLang === 'de' ? 'Erst erhalten, später bezahlen oder 3 Raten' : 
+                            {currentLang === 'ar' ? 'ادفع بعد الاستلام أو قسّط على دفعات عبر Klarna (بدون فوائد)' : 
+                             currentLang === 'de' ? 'Erst Ware in Ruhe prüfen, in 30 Tagen bezahlen (Rechnungskauf)' : 
                              'Pay later after delivery or in 3 installments'}
                           </span>
                         </div>
@@ -1723,6 +2077,39 @@ export default function Checkout() {
 
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── Sticky Mobile Checkout Bar ── */}
+        {cart.length > 0 && (
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-2xl px-4 py-3 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-2 duration-300">
+            <div className="flex flex-col">
+              <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider leading-none">
+                {currentLang === 'ar' ? 'الإجمالي النهائي' : 'Gesamtsumme'}
+              </span>
+              <span className="text-base font-black text-stone-950 font-mono leading-tight mt-0.5">
+                {formatPrice(total)}
+              </span>
+              <span className="text-[9px] text-emerald-600 font-medium leading-none">
+                {shipping === 0 ? (currentLang === 'ar' ? '✓ شحن مجاني' : '✓ Gratis Versand') : 'Inkl. MwSt.'}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={loading || isUnderB2BMinimum}
+              className="flex-1 max-w-[200px] bg-[#d40026] hover:bg-[#b0001e] text-white py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition disabled:opacity-40"
+            >
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Lock className="w-3.5 h-3.5 text-white/90" />
+                  <span>{currentLang === 'ar' ? 'إتمام الطلب' : 'Jetzt Kaufen'}</span>
+                </>
+              )}
+            </button>
           </div>
         )}
       </div>

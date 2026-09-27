@@ -145,23 +145,36 @@ export default function Checkout() {
   };
 
   useEffect(() => {
-    const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
+    let savedCart: any[] = [];
+    try {
+      const rawCart = localStorage.getItem('cart');
+      if (rawCart) {
+        const parsed = JSON.parse(rawCart);
+        if (Array.isArray(parsed)) savedCart = parsed;
+      }
+    } catch (e) {
+      console.error("Failed to parse cart:", e);
+    }
     setCart(savedCart);
     syncLang();
     window.addEventListener('language-changed', syncLang);
 
     if (savedCart.length > 0) {
-      const subtotal = savedCart.reduce((acc: number, item: any) => acc + (parseFloat(item.price || 0) * item.quantity), 0);
+      const subtotal = savedCart.reduce((acc: number, item: any) => {
+        const p = parseFloat(item.price || 0) || 0;
+        const q = Number(item.quantity) || 1;
+        return acc + (p * q);
+      }, 0);
       trackInitiateCheckout(savedCart, subtotal, getActiveCurrency());
     }
     
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
         setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error(e);
       }
+    } catch (e) {
+      console.error("Failed to parse saved user:", e);
     }
 
     const fetchConfig = async () => {
@@ -173,10 +186,21 @@ export default function Checkout() {
           const profileResponse = await axios.get(`${apiUrl}/auth/profile`, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          setUser(profileResponse.data);
-          localStorage.setItem('user', JSON.stringify(profileResponse.data));
-        } catch (error) {
+          if (profileResponse.data) {
+            setUser(profileResponse.data);
+            try {
+              localStorage.setItem('user', JSON.stringify(profileResponse.data));
+            } catch {}
+          }
+        } catch (error: any) {
           console.error("Failed to fetch user profile:", error);
+          if (error.response?.status === 401 || error.response?.status === 403) {
+            try {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+            } catch {}
+            setUser(null);
+          }
         }
       }
 
@@ -248,18 +272,19 @@ export default function Checkout() {
   // Pre-fill shipping address when user is loaded or retrieve saved guest address
   useEffect(() => {
     if (user) {
-      const nameParts = (user.name || '').trim().split(' ');
+      const userName = typeof user.name === 'string' ? user.name : '';
+      const nameParts = userName.trim().split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
       setShippingAddress(prev => ({
         firstName: prev.firstName || firstName,
         lastName: prev.lastName || lastName,
-        email: prev.email || user.email || '',
-        street: prev.street || user.street || user.address || '',
+        email: prev.email || (typeof user.email === 'string' ? user.email : ''),
+        street: prev.street || (typeof user.street === 'string' ? user.street : (typeof user.address === 'string' ? user.address : '')),
         houseNumber: prev.houseNumber || '',
-        postalCode: prev.postalCode || user.postalCode || user.zip || '',
-        city: prev.city || user.city || '',
-        phone: prev.phone || user.phone || '',
+        postalCode: prev.postalCode || (typeof user.postalCode === 'string' ? user.postalCode : (typeof user.zip === 'string' ? user.zip : '')),
+        city: prev.city || (typeof user.city === 'string' ? user.city : ''),
+        phone: prev.phone || (typeof user.phone === 'string' ? user.phone : ''),
       }));
     } else {
       try {
@@ -289,8 +314,9 @@ export default function Checkout() {
         return item;
       });
       if (changed) {
-        localStorage.setItem('cart', JSON.stringify(corrected));
-        window.dispatchEvent(new Event('cart-updated'));
+        try {
+          localStorage.setItem('cart', JSON.stringify(corrected));
+        } catch {}
       }
       return changed ? corrected : prev;
     });
@@ -304,7 +330,7 @@ export default function Checkout() {
         setIsCompanyOrder(true);
       }
     }
-    if (user?.vatNumber && !vatNumber) {
+    if (user?.vatNumber && typeof user.vatNumber === 'string' && !vatNumber) {
       const userVat = user.vatNumber.trim();
       setVatNumber(userVat);
       setIsCompanyOrder(true);
@@ -627,7 +653,11 @@ export default function Checkout() {
   const t = translations[currentLang] || translations.de;
   const isRtl = currentLang === 'ar';
 
-  const subtotal = cart.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0);
+  const subtotal = Array.isArray(cart) ? cart.reduce((acc, item) => {
+    const p = parseFloat(item?.price || 0) || 0;
+    const q = Number(item?.quantity) || 1;
+    return acc + (p * q);
+  }, 0) : 0;
 
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const isWholesaleCustomer = user?.role === 'SELLER' || user?.role === 'WHOLESALE';
@@ -658,12 +688,14 @@ export default function Checkout() {
     : (buy2get1Config.category_id ? [buy2get1Config.category_id] : []);
   const expandedUnits: { price: number; itemId: string }[] = [];
 
-  for (const item of cart) {
-    const product = productDetails[item.id];
+  for (const item of (Array.isArray(cart) ? cart : [])) {
+    const product = productDetails[item?.id];
     const isEligible = isPromoActive && isProductEligibleForPromo(product, eligibleCatIds);
     if (isEligible) {
-      for (let i = 0; i < item.quantity; i++) {
-        expandedUnits.push({ price: parseFloat(item.price), itemId: item.id });
+      const q = Number(item?.quantity) || 0;
+      const p = parseFloat(item?.price || 0) || 0;
+      for (let i = 0; i < q; i++) {
+        expandedUnits.push({ price: p, itemId: item.id });
       }
     }
   }
@@ -778,8 +810,18 @@ export default function Checkout() {
     ? discountedSubtotal
     : discountedSubtotal / (1 + defaultRate / 100);
 
+  const vatAmount = isReverseCharge || isNonEU
+    ? 0
+    : (isExclusive
+      ? netDiscountedSubtotal * (vatRate / 100)
+      : discountedSubtotal - (discountedSubtotal / (1 + (vatRate || defaultRate) / 100)));
+
   const giftWrapCost = giftWrapOption ? 4.99 : 0;
-  const total = netDiscountedSubtotal + shipping + vatAmount + giftWrapCost;
+  const total = isReverseCharge || isNonEU
+    ? netDiscountedSubtotal + shipping + giftWrapCost
+    : (isExclusive
+      ? netDiscountedSubtotal + shipping + vatAmount + giftWrapCost
+      : discountedSubtotal + shipping + giftWrapCost);
 
   // Free shipping progress calculation (Free above 50 €)
   const freeShippingThreshold = 50;

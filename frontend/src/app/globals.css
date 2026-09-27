@@ -117,12 +117,31 @@ body {
   }
 }
 
-/* Hide floating AI chat widget while cookie consent is open to prevent UI collision and clutter */
+/* Hide floating AI chat widget while cookie consent or cart drawer is open */
 body.has-cookie-banner .bari-widget-wrap,
-body.has-cookie-banner .bari-widget-trigger {
+body.has-cookie-banner .bari-widget-trigger,
+body.cart-drawer-open .bari-widget-wrap,
+body.cart-drawer-open .bari-widget-trigger,
+body.cart-drawer-open .bari-proactive-bubble {
   opacity: 0 !important;
   pointer-events: none !important;
+  visibility: hidden !important;
   transform: translateY(20px) !important;
-  transition: opacity 0.3s ease, transform 0.3s ease !important;
+  transition: opacity 0.25s ease, transform 0.25s ease !important;
+}
+
+/* Permanently disable unprompted auto-popping speech bubbles that block buttons */
+.bari-proactive-bubble,
+#bariProactiveBubble,
+div[class*="proactive-bubble"] {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+/* Ensure AI chat launcher never overlays interactive drawers or checkout modals */
+.bari-widget-wrap {
+  z-index: 45 !important;
 }
 

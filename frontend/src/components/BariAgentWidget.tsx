@@ -1,11 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export default function BariAgentWidget() {
+  const pathname = usePathname();
+  const isPurchaseFlow = pathname?.startsWith("/checkout") || pathname === "/cart" || pathname === "/success";
+
   useEffect(() => {
-    // Ensure script only loads once in the browser
     if (typeof window === "undefined") return;
+
+    // Dynamically toggle visibility based on current route
+    const wrap = document.querySelector(".bari-widget-wrap") as HTMLElement;
+    if (wrap) {
+      wrap.style.display = isPurchaseFlow ? "none" : "block";
+    }
+
+    if (isPurchaseFlow) return;
+
     if (document.getElementById("bari-agent-script")) return;
 
     const script = document.createElement("script");
@@ -16,11 +28,12 @@ export default function BariAgentWidget() {
     script.setAttribute("data-title", "BS Baristore AI");
     script.setAttribute("data-persona", "ecommerce");
     script.setAttribute("data-position", "right");
+    script.setAttribute("data-proactive", "0"); // Disable annoying auto-popup speech bubble!
     script.setAttribute("data-endpoint", "https://barigroup.net/wp-admin/admin-ajax.php");
     script.async = true;
 
     document.body.appendChild(script);
-  }, []);
+  }, [pathname, isPurchaseFlow]);
 
   return null;
 }

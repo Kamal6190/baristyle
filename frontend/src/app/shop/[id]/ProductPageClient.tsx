@@ -977,13 +977,12 @@ export default function ProductPageClient({ initialProduct, id: propId }: { init
             )}
 
             {/* Pricing Section */}
-            <div className="mb-10">
+            <div className="mb-6">
               {(() => {
                 const isB2B = (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SELLER') && product.attributes?.sales_mode !== 'RETAIL_ONLY';
                 const b2bPrice = parseFloat(product.b2b_price || 0);
                 const b2cPrice = parseFloat(product.sales_price_with_tax || product.price || 0);
                 
-                // Guard: don't render price until client is mounted (user data loaded from localStorage)
                 // Guard: don't render price until client is mounted (user data loaded from localStorage)
                 if (!isMounted) {
                   return (
@@ -1112,23 +1111,6 @@ export default function ProductPageClient({ initialProduct, id: propId }: { init
                   </div>
                 );
               })()}
-
-              {/* Wholesale Banner (Only show if no token or role is guest) */}
-              {isMounted && !localStorage.getItem('token') && !isWholesaleOnly && (
-                <div className="bg-[#1A1F2C] text-white p-5 rounded-md border border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between shadow-lg relative overflow-hidden gap-4">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                  <div className="relative z-10">
-                    <h4 className="font-semibold text-sm mb-1 flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                      {t.wholesalePrice}
-                    </h4>
-                    <p className="text-xs text-stone-400">{t.b2bBannerDesc}</p>
-                  </div>
-                  <Link href="/login" className="relative z-10 bg-white text-stone-900 text-xs font-bold px-5 py-2.5 rounded hover:bg-stone-200 transition shadow-sm text-center whitespace-nowrap">
-                    {t.login}
-                  </Link>
-                </div>
-              )}
             </div>
 
             {/* Stock Availability Info + Urgency Bar */}

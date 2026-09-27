@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { X, Sparkles, Gift, ArrowRight, Tag, CheckCircle2, ShieldCheck, Truck } from "lucide-react";
 import { detectLocale, Locale } from "../utils/autoLang";
 import { translations } from "../utils/i18n";
@@ -17,6 +18,7 @@ export default function Buy2Get1PopupModal({
   onClose: externalOnClose,
   lang: externalLang,
 }: Buy2Get1PopupModalProps) {
+  const pathname = usePathname();
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [lang, setLang] = useState<Locale>("de");
 
@@ -90,7 +92,7 @@ export default function Buy2Get1PopupModal({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || pathname?.startsWith('/admin')) return null;
 
   const t = translations[lang] || translations.de;
   const isRtl = lang === "ar";

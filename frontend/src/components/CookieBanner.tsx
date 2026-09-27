@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Locale } from '../utils/i18n';
 import { ShieldAlert, X } from 'lucide-react';
 
@@ -43,6 +44,7 @@ const bannerTranslations = {
 };
 
 export default function CookieBanner() {
+  const pathname = usePathname();
   const [currentLang, setCurrentLang] = useState<Locale>('de');
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -93,7 +95,7 @@ export default function CookieBanner() {
     }, 350);
   };
 
-  if (!isVisible) return null;
+  if (!isVisible || pathname?.startsWith('/admin')) return null;
 
   const t = bannerTranslations[currentLang] || bannerTranslations.de;
   const isRtl = currentLang === 'ar';

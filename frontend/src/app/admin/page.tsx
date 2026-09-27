@@ -6883,17 +6883,23 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
       {isMobileMenuOpen && (
         <div 
           onClick={() => setIsMobileMenuOpen(false)} 
-          className="fixed inset-0 bg-black/55 backdrop-blur-xs z-30 md:hidden"
-          style={{ top: '156px' }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden"
         />
       )}
 
       {/* Sidebar Navigation */}
-      <div className={`w-64 bg-[#111625] text-stone-300 flex flex-col fixed left-0 top-[156px] h-[calc(100vh-156px)] z-40 transition-transform duration-300 md:translate-x-0 ${
+      <div className={`w-64 bg-[#111625] text-stone-300 flex flex-col fixed left-0 top-0 bottom-0 h-full z-50 transition-transform duration-300 md:translate-x-0 ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
-        <div className="p-6 border-b border-white/10">
+        <div className="p-5 border-b border-white/10 flex items-center justify-between">
           <h2 className="text-white text-xl font-serif font-bold tracking-wide">BS Baristore<span className="text-[#d40026]">.ERP</span></h2>
+          <button 
+            type="button" 
+            onClick={() => setIsMobileMenuOpen(false)} 
+            className="md:hidden p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
         <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
           {[
@@ -7031,27 +7037,33 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 md:ml-64 p-4 sm:p-8">
-        <div className="max-w-7xl mx-auto space-y-8">
+      <div className="flex-1 md:ml-64 p-3 sm:p-6 lg:p-8 min-h-screen min-w-0 w-full overflow-x-hidden">
+        <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
 
           {/* Mobile Navigation Header */}
-          <div className="flex md:hidden items-center justify-between bg-[#111625] text-white px-4 py-3 rounded-xl shadow-md">
-            <span className="font-serif font-bold text-sm tracking-wide">
-              BS Baristore<span className="text-[#d40026]">.ERP</span>
+          <div className="sticky top-0 z-30 flex md:hidden items-center justify-between bg-[#111625] text-white px-4 py-3 shadow-md rounded-xl mb-4">
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition focus:outline-none cursor-pointer"
+                aria-label="Toggle Menu"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-5 h-5" />
+                ) : (
+                  <Menu className="w-5 h-5" />
+                )}
+              </button>
+              <span className="font-serif font-bold text-sm tracking-wide">
+                BS Baristore<span className="text-[#d40026]">.ERP</span>
+              </span>
+            </div>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-stone-800 text-stone-300 font-medium capitalize">
+              {activeTab.replace('-', ' ')}
             </span>
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition focus:outline-none"
-            >
-              {isMobileMenuOpen ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <Menu className="w-5 h-5" />
-              )}
-            </button>
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-stone-100">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 bg-white p-3.5 sm:p-5 rounded-xl shadow-sm border border-stone-100">
             <h1 className="text-xl sm:text-2xl font-serif font-bold text-stone-900 capitalize">
               {activeTab.replace('-', ' ')}
             </h1>
@@ -7430,7 +7442,8 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                     </div>
                   )}
 
-                  <table className="w-full text-left border-collapse min-w-[900px]">
+                  <div className="overflow-x-auto w-full">
+                    <table className="w-full text-left border-collapse min-w-[900px]">
                     <thead>
                       <tr className="bg-stone-900 text-white text-[10px] uppercase tracking-widest">
                         <th className="p-3 w-8">
@@ -7633,6 +7646,7 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                       ))}
                     </tbody>
                   </table>
+                  </div>
                   {filteredProducts.length === 0 && <div className="p-12 text-center text-stone-500 text-sm flex flex-col items-center gap-2"><Package className="w-8 h-8 text-stone-300" /> No products found. Use the CSV uploader above.</div>}
                 </div>
               </div>
@@ -10142,33 +10156,33 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
 
       {/* ─── Add Product Modal ──────────────────────────────────────────────── */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-[#F4F5F7] rounded-2xl shadow-2xl w-full max-w-5xl my-6 animate-in zoom-in-95 duration-200 overflow-hidden">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-center p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-[#F4F5F7] rounded-none sm:rounded-2xl shadow-2xl w-full max-w-5xl my-0 sm:my-6 animate-in zoom-in-95 duration-200 overflow-hidden min-h-screen sm:min-h-0 flex flex-col">
 
             {/* ── Modal Header ── */}
-            <div className="flex items-center justify-between px-7 py-5 bg-white border-b border-stone-200 sticky top-0 z-20">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-stone-900 flex items-center justify-center">
-                  <Plus className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-between px-4 py-3 sm:px-7 sm:py-5 bg-white border-b border-stone-200 sticky top-0 z-20">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-stone-900 flex items-center justify-center shrink-0">
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-stone-900 leading-tight">Add New Product</h2>
-                  <p className="text-xs text-stone-400 mt-0.5">Fill in the details below — variants can be added for different sizes</p>
+                  <h2 className="text-sm sm:text-base font-bold text-stone-900 leading-tight">Add New Product</h2>
+                  <p className="text-[11px] sm:text-xs text-stone-400 mt-0.5 line-clamp-1 sm:line-clamp-none">Fill in the details below — variants can be added for different sizes</p>
                 </div>
               </div>
-              <button onClick={() => setIsAddModalOpen(false)} className="w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 flex items-center justify-center transition cursor-pointer">
+              <button onClick={() => setIsAddModalOpen(false)} className="w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 flex items-center justify-center transition cursor-pointer shrink-0">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleAddProduct}>
-              <div className="p-6 space-y-5">
+            <form onSubmit={handleAddProduct} className="flex-1 flex flex-col justify-between">
+              <div className="p-3 sm:p-6 space-y-4 sm:space-y-5 flex-1">
 
                 {/* ── CARD 1: Basic Info ── */}
-                <div className="bg-white rounded-2xl border border-stone-200/80 shadow-md shadow-stone-100 overflow-hidden">
-                  <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/40">
+                <div className="bg-white rounded-xl sm:rounded-2xl border border-stone-200/80 shadow-xs sm:shadow-md shadow-stone-100 overflow-hidden">
+                  <div className="px-3.5 py-3 sm:px-5 sm:py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/40">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-stone-900 text-white flex items-center justify-center shadow-md shadow-stone-900/10">
+                      <div className="w-8 h-8 rounded-xl bg-stone-900 text-white flex items-center justify-center shadow-md shadow-stone-900/10 shrink-0">
                         <Package className="w-4 h-4" />
                       </div>
                       <div>
@@ -10177,7 +10191,7 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                       </div>
                     </div>
                   </div>
-                  <div className="p-5 space-y-4">
+                  <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4">
 
                     {/* Name row */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -10332,20 +10346,20 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                 </div>
 
                 {/* ── CARD 2: Categories ── */}
-                <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-                  <div className="px-5 py-3.5 border-b border-stone-100 flex items-center justify-between bg-stone-50">
+                <div className="bg-white rounded-xl sm:rounded-2xl border border-stone-200/80 shadow-xs sm:shadow-md overflow-hidden">
+                  <div className="px-3.5 py-3 sm:px-5 sm:py-3.5 border-b border-stone-100 flex flex-wrap items-center justify-between gap-2 bg-stone-50">
                     <div className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full bg-stone-800 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">2</span>
                       <span className="text-xs font-bold text-stone-700 uppercase tracking-widest">Categories</span>
                     </div>
                     {newProduct.category_ids?.length > 0 && (
-                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full truncate max-w-full">
                         {newProduct.category_ids.length} selected
                       </span>
                     )}
                   </div>
-                  <div className="p-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-44 overflow-y-auto pr-1">
+                  <div className="p-3 sm:p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-56 sm:max-h-44 overflow-y-auto pr-1">
                       {categories.map((c: any) => {
                         const checked = newProduct.category_ids?.includes(c.id);
                         const isPrimary = newProduct.category_ids?.[0] === c.id;
@@ -10476,7 +10490,7 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                         ) : null}
 
                         {/* ID fields */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                           {[
                             { label: 'SKU', key: 'sku', placeholder: 'Auto-generated if empty', mono: true },
                             { label: 'EAN Barcode', key: 'ean', placeholder: '62900...', mono: true },
@@ -10498,7 +10512,7 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                         </div>
 
                         {/* Pricing — color coded */}
-                        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                           {/* Net Price */}
                           <div className="space-y-1">
                             <label className="text-[9px] font-bold text-stone-500 uppercase tracking-widest flex items-center gap-1">
@@ -10884,17 +10898,17 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
               </div>
 
               {/* ── Footer actions ── */}
-              <div className="px-6 py-4 bg-white border-t border-stone-200 flex items-center justify-between sticky bottom-0 z-20">
-                <p className="text-xs text-stone-400">
+              <div className="px-4 py-3 sm:px-6 sm:py-4 bg-white/95 backdrop-blur-md border-t border-stone-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between sticky bottom-0 z-20 gap-3">
+                <p className="text-xs text-stone-400 text-center sm:text-left">
                   <span className="font-bold text-stone-600">{newProduct.variants.length}</span> variant{newProduct.variants.length !== 1 ? 's' : ''} will be published
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
                   <button type="button" onClick={() => setIsAddModalOpen(false)}
-                    className="px-5 py-2.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 text-sm font-semibold transition cursor-pointer">
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 text-sm font-semibold transition cursor-pointer text-center">
                     Cancel
                   </button>
                   <button type="submit"
-                    className="px-7 py-2.5 rounded-lg bg-stone-900 text-white hover:bg-black text-sm font-bold transition cursor-pointer flex items-center gap-2 shadow-sm">
+                    className="w-full sm:w-auto px-7 py-2.5 rounded-xl bg-stone-900 text-white hover:bg-black text-sm font-bold transition cursor-pointer flex items-center justify-center gap-2 shadow-sm">
                     <Plus className="w-4 h-4" />
                     Publish Product
                   </button>
@@ -10908,33 +10922,33 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
 
       {/* Edit Product Modal Overlay */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-[#F4F5F7] rounded-2xl shadow-2xl w-full max-w-5xl my-6 animate-in zoom-in-95 duration-200 overflow-hidden">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-center p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-[#F4F5F7] rounded-none sm:rounded-2xl shadow-2xl w-full max-w-5xl my-0 sm:my-6 animate-in zoom-in-95 duration-200 overflow-hidden min-h-screen sm:min-h-0 flex flex-col">
 
             {/* ── Modal Header ── */}
-            <div className="flex items-center justify-between px-7 py-5 bg-white border-b border-stone-200 sticky top-0 z-20">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-stone-900 flex items-center justify-center">
-                  <Pencil className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-between px-4 py-3 sm:px-7 sm:py-5 bg-white border-b border-stone-200 sticky top-0 z-20">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-stone-900 flex items-center justify-center shrink-0">
+                  <Pencil className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-stone-900 leading-tight">Edit Product Specifications</h2>
-                  <p className="text-xs text-stone-400 mt-0.5">Update the name, image, tags, prices, and settings of this product record</p>
+                  <h2 className="text-sm sm:text-base font-bold text-stone-900 leading-tight">Edit Product Specifications</h2>
+                  <p className="text-[11px] sm:text-xs text-stone-400 mt-0.5 line-clamp-1 sm:line-clamp-none">Update the name, image, tags, prices, and settings of this product record</p>
                 </div>
               </div>
-              <button onClick={() => setIsEditModalOpen(false)} className="w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 flex items-center justify-center transition cursor-pointer">
+              <button onClick={() => setIsEditModalOpen(false)} className="w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 flex items-center justify-center transition cursor-pointer shrink-0">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleUpdateProduct}>
-              <div className="p-6 space-y-5">
+            <form onSubmit={handleUpdateProduct} className="flex-1 flex flex-col justify-between">
+              <div className="p-3 sm:p-6 space-y-4 sm:space-y-5 flex-1">
 
                 {/* ── CARD 1: Basic Info ── */}
-                <div className="bg-white rounded-2xl border border-stone-200/80 shadow-md shadow-stone-100 overflow-hidden">
-                  <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/40">
+                <div className="bg-white rounded-xl sm:rounded-2xl border border-stone-200/80 shadow-xs sm:shadow-md shadow-stone-100 overflow-hidden">
+                  <div className="px-3.5 py-3 sm:px-5 sm:py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/40">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-stone-900 text-white flex items-center justify-center shadow-md shadow-stone-900/10">
+                      <div className="w-8 h-8 rounded-xl bg-stone-900 text-white flex items-center justify-center shadow-md shadow-stone-900/10 shrink-0">
                         <Package className="w-4 h-4" />
                       </div>
                       <div>
@@ -10943,7 +10957,7 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                       </div>
                     </div>
                   </div>
-                  <div className="p-5 space-y-4">
+                  <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4">
 
                     {/* Name row */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -11061,7 +11075,7 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                         <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                         Duftpyramide / Scent Notes (Kopf, Herz, Basis)
                       </label>
-                      <div className="grid grid-cols-1 gap-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         <div className="space-y-1">
                           <span className="text-[9px] uppercase font-bold text-amber-800 tracking-wider">Kopfnote (Top Notes)</span>
                           <input
@@ -11098,20 +11112,20 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                 </div>
 
                 {/* ── CARD 2: Categories ── */}
-                <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-                  <div className="px-5 py-3.5 border-b border-stone-100 flex items-center justify-between bg-stone-50">
+                <div className="bg-white rounded-xl sm:rounded-2xl border border-stone-200/80 shadow-xs sm:shadow-md overflow-hidden">
+                  <div className="px-3.5 py-3 sm:px-5 sm:py-3.5 border-b border-stone-100 flex flex-wrap items-center justify-between gap-2 bg-stone-50">
                     <div className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full bg-stone-800 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">2</span>
                       <span className="text-xs font-bold text-stone-700 uppercase tracking-widest">Categories</span>
                     </div>
                     {editProduct.category_ids?.length > 0 && (
-                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full truncate max-w-full">
                         {editProduct.category_ids.length} selected · Primary: {categories.find((c: any) => c.id === editProduct.category_ids[0])?.name?.en || '—'}
                       </span>
                     )}
                   </div>
-                  <div className="p-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-44 overflow-y-auto pr-1">
+                  <div className="p-3 sm:p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-56 sm:max-h-44 overflow-y-auto pr-1">
                       {categories.map((c: any) => {
                         const checked = editProduct.category_ids?.includes(c.id);
                         const isPrimary = editProduct.category_ids?.[0] === c.id;
@@ -11192,8 +11206,8 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                     </div>
                   </div>
 
-                  <div className="p-5">
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="p-3.5 sm:p-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                       {[
                         { label: 'SKU', key: 'sku', placeholder: 'e.g. OUD-100', mono: true, required: true },
                         { label: 'EAN Barcode', key: 'ean', placeholder: '62900...', mono: true, required: false },
@@ -11268,7 +11282,7 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                                           e.stopPropagation();
                                           handleDeleteVariantProduct(v);
                                         }}
-                                        className="w-6 h-6 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200/50 opacity-0 group-hover/item:opacity-100 shadow-xs"
+                                        className="w-6 h-6 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200/50 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 shadow-xs"
                                         title="Delete this variant product"
                                       >
                                         🗑️
@@ -11305,15 +11319,15 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                 </div>
 
                 {/* ── CARD 4: Pricing ── */}
-                <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-                  <div className="px-5 py-3.5 border-b border-stone-100 flex items-center gap-2 bg-stone-50">
+                <div className="bg-white rounded-xl sm:rounded-2xl border border-stone-200/80 shadow-xs sm:shadow-md overflow-hidden">
+                  <div className="px-3.5 py-3 sm:px-5 sm:py-3.5 border-b border-stone-100 flex items-center gap-2 bg-stone-50">
                     <span className="w-5 h-5 rounded-full bg-stone-800 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">4</span>
                     <span className="text-xs font-bold text-stone-700 uppercase tracking-widest">B2B & B2C Pricing</span>
                     <span className="text-[10px] text-stone-400 font-medium">(Dynamic VAT Sync)</span>
                   </div>
-                  <div className="p-5 space-y-4">
+                  <div className="p-3.5 sm:p-5 space-y-4">
                     {/* Pricing — color coded */}
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                       {/* Net Price */}
                       <div className="space-y-1">
                         <label className="text-[9px] font-bold text-stone-500 uppercase tracking-widest flex items-center gap-1">
@@ -11619,7 +11633,7 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                                 <>
                                   <img src={resolveImageUrl(url)} alt="" className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                                   {/* Hover Actions Controls */}
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition duration-300 z-10">
+                                  <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center gap-1.5 transition duration-300 z-10">
                                     {slot.index > 0 && (
                                       <button
                                         type="button"
@@ -11767,9 +11781,9 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                               No keys sold yet for this product.
                             </div>
                           ) : (
-                            <div className="border border-stone-200 rounded-lg overflow-hidden">
+                            <div className="border border-stone-200 rounded-lg overflow-x-auto">
                               <div className="max-h-52 overflow-y-auto">
-                                <table className="w-full text-left text-[10px] border-collapse">
+                                <table className="w-full text-left text-[10px] border-collapse min-w-[500px]">
                                   <thead>
                                     <tr className="bg-stone-50 text-stone-400 font-bold border-b border-stone-100 sticky top-0">
                                       <th className="px-3 py-2">License Key</th>
@@ -11795,7 +11809,7 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
                                           {row.orderShortId}
                                         </td>
                                         <td className="px-3 py-2 text-stone-400 whitespace-nowrap">
-                                          {row.soldAt ? new Date(row.soldAt).toLocaleDateString('de-DE') : '�'}
+                                          {row.soldAt ? new Date(row.soldAt).toLocaleDateString('de-DE') : '—'}
                                         </td>
                                       </tr>
                                     ))}
@@ -11839,13 +11853,13 @@ Vielen Dank für Ihren Einkauf! Bei Fragen steht Ihnen unser Support gerne zur V
               </div>
 
               {/* ── Footer actions ── */}
-              <div className="px-6 py-4 bg-white border-t border-stone-200 flex items-center justify-end sticky bottom-0 z-20 gap-3">
+              <div className="px-4 py-3 sm:px-6 sm:py-4 bg-white/95 backdrop-blur-md border-t border-stone-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end sticky bottom-0 z-20 gap-2 sm:gap-3">
                 <button type="button" onClick={() => setIsEditModalOpen(false)}
-                  className="px-5 py-2.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 text-sm font-semibold transition cursor-pointer">
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 text-sm font-semibold transition cursor-pointer text-center">
                   Cancel
                 </button>
                 <button type="submit"
-                  className="px-7 py-2.5 rounded-lg bg-stone-900 text-white hover:bg-black text-sm font-bold transition cursor-pointer flex items-center gap-2 shadow-sm">
+                  className="w-full sm:w-auto px-7 py-2.5 rounded-xl bg-stone-900 text-white hover:bg-black text-sm font-bold transition cursor-pointer flex items-center justify-center gap-2 shadow-sm">
                   <Check className="w-4 h-4" />
                   Save Product Changes
                 </button>

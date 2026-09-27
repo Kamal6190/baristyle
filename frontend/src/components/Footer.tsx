@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Mail, X, Phone, Shield, FileText } from 'lucide-react';
 import { Locale } from '../utils/i18n';
 import axios from 'axios';
@@ -1042,6 +1043,7 @@ const cookieDetails = {
 };
 
 export default function Footer() {
+  const pathname = usePathname();
   const [currentLang, setCurrentLang] = useState<Locale>('de');
   const [modalType, setModalType] = useState<'imprint' | 'contact' | 'agb' | 'cookies' | null>(null);
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -1141,6 +1143,11 @@ export default function Footer() {
       setNlSubmitting(false);
     }
   };
+
+  // Never render storefront footer inside backoffice admin panel
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <footer className="relative bg-white border-t-[5px] border-[#d40026] mt-20 pt-16 pb-12 w-full text-stone-700 font-sans" dir={isRtl ? 'rtl' : 'ltr'}>

@@ -117,3 +117,12 @@ body {
   }
 }
 
+/* Hide floating AI chat widget while cookie consent is open to prevent UI collision and clutter */
+body.has-cookie-banner .bari-widget-wrap,
+body.has-cookie-banner .bari-widget-trigger {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(20px) !important;
+  transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+

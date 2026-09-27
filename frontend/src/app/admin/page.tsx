@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
-import { Pencil, Save, X, Plus, Check, LayoutDashboard, Package, ShoppingCart, FileText, Users, Settings, LogOut, ArrowUpRight, Search, Download, Tags, Trash2, Image as ImageIcon, Percent, Truck, Globe, Eye, MessageSquare, Star, Gift, Mail, Shield, Upload, BarChart3, AlertCircle, ChevronLeft, ChevronRight, Smartphone, Laptop, Tablet, Send, RotateCw, ChevronDown, ChevronUp, Menu, Sparkles } from 'lucide-react';
+import { Pencil, Save, X, Plus, Check, LayoutDashboard, Package, ShoppingCart, FileText, Users, Settings, LogOut, ArrowUpRight, Search, Download, Tags, Trash2, Image as ImageIcon, Percent, Truck, Globe, Eye, MessageSquare, Star, Gift, Mail, Shield, Upload, BarChart3, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Smartphone, Laptop, Tablet, Send, RotateCw, ChevronDown, ChevronUp, Menu, Sparkles, Filter, CheckSquare, Square } from 'lucide-react';
 import Link from 'next/link';
 import { resolveImageUrl } from '../../utils/api';
 import EbaySection from './EbaySection';
@@ -1982,6 +1982,16 @@ function ReviewsSection() {
   const [search, setSearch] = React.useState('');
   const [deleting, setDeleting] = React.useState<string | null>(null);
 
+  // Pagination & Filtering & Sorting States
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(15);
+  const [starFilter, setStarFilter] = React.useState<number | null>(null);
+  const [verifiedFilter, setVerifiedFilter] = React.useState<'ALL' | 'VERIFIED' | 'UNVERIFIED'>('ALL');
+  const [productFilter, setProductFilter] = React.useState<string>('ALL');
+  const [sortOrder, setSortOrder] = React.useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = React.useState(false);
+
   // Manual Review Form State
   const [isAddOpen, setIsAddOpen] = React.useState(false);
   const [modalTab, setModalTab] = React.useState<'single' | 'bulk'>('bulk'); // Default to bulk as they requested it
@@ -2054,24 +2064,6 @@ function ReviewsSection() {
     }
   };
 
-  const q = search.toLowerCase();
-  const filtered = reviews.filter(r =>
-    !q ||
-    r.author_name?.toLowerCase().includes(q) ||
-    r.title?.toLowerCase().includes(q) ||
-    r.body?.toLowerCase().includes(q) ||
-    (r.product?.name && JSON.stringify(r.product.name).toLowerCase().includes(q))
-  );
-
-  const avgRating = reviews.length
-    ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
-    : '–';
-
-  const renderStars = (rating: number) =>
-    Array.from({ length: 5 }, (_, i) => (
-      <Star key={i} className={`w-3.5 h-3.5 ${i < rating ? 'text-amber-400 fill-amber-400' : 'text-stone-200 fill-stone-200'}`} />
-    ));
-
   const getProductName = (product: any) => {
     if (!product) return 'Unknown Product';
     // Product name is stored in 'translations' JSON field: { de: '', en: '', ar: '' }
@@ -2087,6 +2079,159 @@ function ReviewsSection() {
       return trans.de || trans.en || trans.ar || product.sku || 'Unknown';
     }
     return product.sku || 'Unknown Product';
+  };
+
+  const renderStars = (rating: number) =>
+    Array.from({ length: 5 }, (_, i) => (
+      <Star key={i} className={`w-3.5 h-3.5 ${i < rating ? 'text-amber-400 fill-amber-400' : 'text-stone-200 fill-stone-200'}`} />
+    ));
+
+  const avgRating = reviews.length
+    ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
+    : '–';
+
+  // Reset pagination on filter changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search, starFilter, verifiedFilter, productFilter, sortOrder, pageSize]);
+
+  // Unique reviewed products for filter dropdown
+  const uniqueReviewedProducts = React.useMemo(() => {
+    const map = new Map<string, { id: string; name: string; sku?: string }>();
+    reviews.forEach(r => {
+      const pid = r.product?.id || r.product_id;
+      if (pid && !map.has(pid)) {
+        map.set(pid, {
+          id: pid,
+          name: getProductName(r.product),
+          sku: r.product?.sku
+        });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [reviews]);
+
+  // Filtered and sorted reviews
+  const filtered = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = reviews.filter(r => {
+      if (q) {
+        const authorMatch = (r.author_name || '').toLowerCase().includes(q);
+        const emailMatch = (r.author_email || '').toLowerCase().includes(q);
+        const titleMatch = (r.title || '').toLowerCase().includes(q);
+        const bodyMatch = (r.body || '').toLowerCase().includes(q);
+        const skuMatch = (r.product?.sku || '').toLowerCase().includes(q);
+        const prodNameMatch = getProductName(r.product).toLowerCase().includes(q);
+        if (!authorMatch && !emailMatch && !titleMatch && !bodyMatch && !skuMatch && !prodNameMatch) {
+          return false;
+        }
+      }
+
+      if (starFilter !== null && r.rating !== starFilter) return false;
+      if (verifiedFilter === 'VERIFIED' && !r.verified_purchase) return false;
+      if (verifiedFilter === 'UNVERIFIED' && r.verified_purchase) return false;
+
+      const pid = r.product?.id || r.product_id;
+      if (productFilter !== 'ALL' && pid !== productFilter) return false;
+
+      return true;
+    });
+
+    list.sort((a, b) => {
+      if (sortOrder === 'highest') {
+        return b.rating - a.rating || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      if (sortOrder === 'lowest') {
+        return a.rating - b.rating || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      if (sortOrder === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    return list;
+  }, [reviews, search, starFilter, verifiedFilter, productFilter, sortOrder]);
+
+  const totalItems = filtered.length;
+  const isAll = pageSize === 0;
+  const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedReviews = React.useMemo(() => {
+    if (isAll) return filtered;
+    const start = (safeCurrentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, safeCurrentPage, pageSize, isAll]);
+
+  const fromIndex = totalItems === 0 ? 0 : isAll ? 1 : (safeCurrentPage - 1) * pageSize + 1;
+  const toIndex = isAll ? totalItems : Math.min(safeCurrentPage * pageSize, totalItems);
+
+  const isAllPageSelected = paginatedReviews.length > 0 && paginatedReviews.every(r => selectedIds.has(r.id));
+
+  const toggleSelectAllPage = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (isAllPageSelected) {
+        paginatedReviews.forEach(r => next.delete(r.id));
+      } else {
+        paginatedReviews.forEach(r => next.add(r.id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const count = selectedIds.size;
+    if (count === 0) return;
+    if (!confirm(`هل أنت متأكد من حذف ${count} مراجعة محددة؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+
+    setBulkDeleting(true);
+    const idsToDelete = Array.from(selectedIds);
+    try {
+      const token = localStorage.getItem('token');
+      try {
+        await axios.post(`${API_URL}/reviews/bulk-delete`, { ids: idsToDelete }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (err) {
+        await Promise.all(idsToDelete.map(id =>
+          axios.delete(`${API_URL}/reviews/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+        ));
+      }
+      setReviews(prev => prev.filter(r => !selectedIds.has(r.id)));
+      setSelectedIds(new Set());
+      alert(`تم حذف ${count} مراجعة بنجاح!`);
+    } catch (e) {
+      alert('حدث خطأ أثناء حذف بعض المراجعات.');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (safeCurrentPage > 3) pages.push('...');
+      const start = Math.max(2, safeCurrentPage - 1);
+      const end = Math.min(totalPages - 1, safeCurrentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (safeCurrentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
   };
 
   const filteredProducts = React.useMemo(() => {
@@ -2243,53 +2388,276 @@ function ReviewsSection() {
     }
   };
 
+  const isAnyFilterActive = search !== '' || starFilter !== null || verifiedFilter !== 'ALL' || productFilter !== 'ALL';
+
+  const resetAllFilters = () => {
+    setSearch('');
+    setStarFilter(null);
+    setVerifiedFilter('ALL');
+    setProductFilter('ALL');
+    setSortOrder('newest');
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-stone-900 font-serif">Customer Reviews</h2>
-          <p className="text-xs text-stone-400 mt-1">إدارة وحذف مراجعات العملاء · {reviews.length} مراجعة إجمالاً</p>
+          <p className="text-xs text-stone-500 mt-1">
+            إدارة وحذف مراجعات العملاء · {reviews.length} مراجعة إجمالاً {filtered.length !== reviews.length && `(مطابق للفلتر: ${filtered.length})`}
+          </p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setIsAddOpen(true)}
-            className="flex items-center gap-2 bg-[#d40026] hover:bg-[#b0001f] text-white px-4 py-2 rounded-lg text-sm font-semibold transition cursor-pointer">
+          <button 
+            onClick={() => setIsAddOpen(true)}
+            className="flex items-center gap-2 bg-[#d40026] hover:bg-[#b0001f] text-white px-4 py-2 rounded-lg text-sm font-semibold transition cursor-pointer shadow-xs"
+          >
             <Plus className="w-4 h-4" /> إضافة مراجعة
           </button>
-          <button onClick={fetchReviews}
-            className="flex items-center gap-2 bg-stone-900 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-            <MessageSquare className="w-4 h-4" /> Refresh
+          <button 
+            onClick={fetchReviews}
+            className="flex items-center gap-2 bg-stone-900 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-semibold transition cursor-pointer shadow-xs"
+          >
+            <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
         </div>
       </div>
 
-      {/* Stats row */}
+      {/* Stats Cards (Interactive Quick Filters) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'إجمالي المراجعات', value: reviews.length, col: 'bg-stone-50 border-stone-200 text-stone-800' },
-          { label: 'متوسط التقييم', value: `${avgRating} ★`, col: 'bg-amber-50 border-amber-200 text-amber-800' },
-          { label: '5 نجوم', value: reviews.filter(r => r.rating === 5).length, col: 'bg-green-50 border-green-200 text-green-800' },
-          { label: 'مراجعات مُتحقق منها', value: reviews.filter(r => r.verified_purchase).length, col: 'bg-blue-50 border-blue-200 text-blue-800' },
-        ].map(s => (
-          <div key={s.label} className={`rounded-xl border p-4 ${s.col}`}>
-            <p className="text-2xl font-bold font-mono">{s.value}</p>
-            <p className="text-xs font-bold mt-1 opacity-70">{s.label}</p>
-          </div>
-        ))}
+        {/* Card 1: All Reviews */}
+        <button
+          type="button"
+          onClick={() => {
+            setStarFilter(null);
+            setVerifiedFilter('ALL');
+            setProductFilter('ALL');
+          }}
+          className={`rounded-xl border p-4 text-left transition-all cursor-pointer ${
+            starFilter === null && verifiedFilter === 'ALL'
+              ? 'bg-stone-900 text-white border-stone-900 shadow-sm ring-2 ring-stone-900/20'
+              : 'bg-white hover:bg-stone-50 border-stone-200 text-stone-850'
+          }`}
+        >
+          <p className="text-2xl font-bold font-mono">{reviews.length}</p>
+          <p className={`text-xs font-bold mt-1 ${starFilter === null && verifiedFilter === 'ALL' ? 'text-stone-300' : 'text-stone-500'}`}>
+            إجمالي المراجعات (الكل)
+          </p>
+        </button>
+
+        {/* Card 2: Average Rating */}
+        <div className="rounded-xl border p-4 bg-amber-50/80 border-amber-200 text-amber-900">
+          <p className="text-2xl font-bold font-mono flex items-center gap-1">
+            {avgRating} <Star className="w-5 h-5 fill-amber-400 text-amber-400 inline" />
+          </p>
+          <p className="text-xs font-bold mt-1 text-amber-700">متوسط التقييم العام</p>
+        </div>
+
+        {/* Card 3: 5 Stars Quick Filter */}
+        <button
+          type="button"
+          onClick={() => setStarFilter(prev => prev === 5 ? null : 5)}
+          className={`rounded-xl border p-4 text-left transition-all cursor-pointer ${
+            starFilter === 5
+              ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm ring-2 ring-emerald-500/20'
+              : 'bg-emerald-50/70 hover:bg-emerald-50 border-emerald-200 text-emerald-900'
+          }`}
+        >
+          <p className="text-2xl font-bold font-mono">
+            {reviews.filter(r => r.rating === 5).length}
+          </p>
+          <p className={`text-xs font-bold mt-1 flex items-center justify-between ${starFilter === 5 ? 'text-emerald-100' : 'text-emerald-700'}`}>
+            <span>تقييم 5 نجوم ★</span>
+            {starFilter === 5 && <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded">مُفعّل</span>}
+          </p>
+        </button>
+
+        {/* Card 4: Verified Reviews Quick Filter */}
+        <button
+          type="button"
+          onClick={() => setVerifiedFilter(prev => prev === 'VERIFIED' ? 'ALL' : 'VERIFIED')}
+          className={`rounded-xl border p-4 text-left transition-all cursor-pointer ${
+            verifiedFilter === 'VERIFIED'
+              ? 'bg-blue-700 text-white border-blue-700 shadow-sm ring-2 ring-blue-500/20'
+              : 'bg-blue-50/70 hover:bg-blue-50 border-blue-200 text-blue-900'
+          }`}
+        >
+          <p className="text-2xl font-bold font-mono">
+            {reviews.filter(r => r.verified_purchase).length}
+          </p>
+          <p className={`text-xs font-bold mt-1 flex items-center justify-between ${verifiedFilter === 'VERIFIED' ? 'text-blue-100' : 'text-blue-700'}`}>
+            <span>مراجعات مُتحقق منها ✓</span>
+            {verifiedFilter === 'VERIFIED' && <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded">مُفعّل</span>}
+          </p>
+        </button>
       </div>
 
-      {/* Search */}
-      <div className="bg-white rounded-xl shadow-sm border border-stone-100 p-4">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="ابحث بالاسم، المنتج، أو النص..."
-            className="w-full pl-9 pr-4 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-stone-900 transition" />
+      {/* Advanced Filter & Search Toolbar */}
+      <div className="bg-white rounded-xl shadow-xs border border-stone-200/80 p-4 space-y-3">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* Search Box */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+            <input 
+              type="text" 
+              value={search} 
+              onChange={e => setSearch(e.target.value)}
+              placeholder="ابحث باسم المراجع، البريد، المنتج، أو نص المراجعة..."
+              className="w-full pl-9 pr-8 py-2 border border-stone-200 rounded-lg text-xs focus:outline-none focus:border-stone-900 transition bg-stone-50/50" 
+            />
+            {search && (
+              <button 
+                type="button" 
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Star Filter Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+            <span className="text-xs text-stone-400 font-medium ml-1">النجوم:</span>
+            {[
+              { label: 'الكل', value: null },
+              { label: '5 ★', value: 5 },
+              { label: '4 ★', value: 4 },
+              { label: '3 ★', value: 3 },
+              { label: '2 ★', value: 2 },
+              { label: '1 ★', value: 1 },
+            ].map(item => {
+              const active = starFilter === item.value;
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => setStarFilter(item.value)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    active
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-stone-100 hover:bg-stone-200/70 text-stone-700'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Second Row: Verified filter, Product filter, Sorting, Page Size, Reset */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-stone-100 text-xs">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Verified Filter */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-stone-500 font-medium">التحقق:</span>
+              <select
+                value={verifiedFilter}
+                onChange={e => setVerifiedFilter(e.target.value as any)}
+                className="bg-white border border-stone-200 text-stone-800 rounded-lg px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-stone-400 cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">كل المراجعات</option>
+                <option value="VERIFIED">مُتحقق منها فقط (Verified)</option>
+                <option value="UNVERIFIED">غير مُتحقق منها</option>
+              </select>
+            </div>
+
+            {/* Product Filter */}
+            {uniqueReviewedProducts.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-stone-500 font-medium">المنتج:</span>
+                <select
+                  value={productFilter}
+                  onChange={e => setProductFilter(e.target.value)}
+                  className="bg-white border border-stone-200 text-stone-800 rounded-lg px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-stone-400 cursor-pointer shadow-2xs max-w-[200px] truncate"
+                >
+                  <option value="ALL">جميع المنتجات ({uniqueReviewedProducts.length})</option>
+                  {uniqueReviewedProducts.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Sort Order */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-stone-500 font-medium">الترتيب:</span>
+              <select
+                value={sortOrder}
+                onChange={e => setSortOrder(e.target.value as any)}
+                className="bg-white border border-stone-200 text-stone-800 rounded-lg px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-stone-400 cursor-pointer shadow-2xs"
+              >
+                <option value="newest">الأحدث أولاً</option>
+                <option value="oldest">الأقدم أولاً</option>
+                <option value="highest">الأعلى تقييماً ★</option>
+                <option value="lowest">الأقل تقييماً</option>
+              </select>
+            </div>
+
+            {/* Reset Filters Button */}
+            {isAnyFilterActive && (
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="text-stone-500 hover:text-stone-900 underline text-xs font-semibold px-1 cursor-pointer"
+              >
+                إلغاء كل الفلاتر ✕
+              </button>
+            )}
+          </div>
+
+          {/* Page size dropdown */}
+          <div className="flex items-center gap-1.5 ml-auto">
+            <span className="text-stone-500 font-medium">عرض بالصفحة:</span>
+            <select
+              value={pageSize}
+              onChange={e => setPageSize(Number(e.target.value))}
+              className="bg-white border border-stone-200 text-stone-800 rounded-lg px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-stone-400 cursor-pointer shadow-2xs"
+            >
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={0}>عرض الكل ({filtered.length})</option>
+            </select>
+          </div>
         </div>
       </div>
 
+      {/* Bulk Action Bar (When items selected) */}
+      {selectedIds.size > 0 && (
+        <div className="bg-amber-50 border border-amber-300/80 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-150">
+          <div className="flex items-center gap-3">
+            <CheckSquare className="w-5 h-5 text-amber-700" />
+            <span className="text-xs font-bold text-amber-950">
+              تم تحديد <span className="underline font-mono text-sm">{selectedIds.size}</span> مراجعة
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-amber-800 hover:text-amber-950 underline text-xs font-semibold cursor-pointer"
+            >
+              إلغاء التحديد
+            </button>
+          </div>
+          <button
+            type="button"
+            disabled={bulkDeleting}
+            onClick={handleBulkDelete}
+            className="flex items-center gap-2 bg-[#d40026] hover:bg-[#b0001f] text-white px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer shadow-xs disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {bulkDeleting ? 'جاري الحذف...' : `حذف المراجعات المحددة (${selectedIds.size})`}
+          </button>
+        </div>
+      )}
+
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-stone-100 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-xs border border-stone-200/80 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-stone-900" />
@@ -2297,80 +2665,234 @@ function ReviewsSection() {
         ) : filtered.length === 0 ? (
           <div className="py-24 text-center text-stone-400">
             <MessageSquare className="w-12 h-12 mx-auto mb-3 text-stone-200" />
-            <p className="font-semibold">لا توجد مراجعات</p>
-            <p className="text-xs mt-1 opacity-60">ستظهر المراجعات هنا عند إضافتها من العملاء</p>
+            <p className="font-semibold text-stone-700">لا توجد مراجعات مطابقة</p>
+            <p className="text-xs mt-1 text-stone-400">
+              {isAnyFilterActive ? 'جرّب تعديل خيارات الفلترة أو إلغائها' : 'ستظهر المراجعات هنا عند إضافتها من العملاء'}
+            </p>
+            {isAnyFilterActive && (
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="mt-4 px-4 py-2 bg-stone-900 text-white rounded-lg text-xs font-bold hover:bg-black transition cursor-pointer"
+              >
+                إلغاء الفلاتر وعرض الكل
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse">
               <thead>
-                <tr className="bg-stone-50 text-stone-400 text-[10px] uppercase tracking-widest border-b border-stone-100">
-                  <th className="px-5 py-3 font-semibold">المراجع</th>
-                  <th className="px-5 py-3 font-semibold">المنتج</th>
-                  <th className="px-5 py-3 font-semibold">التقييم</th>
-                  <th className="px-5 py-3 font-semibold hidden md:table-cell">العنوان والنص</th>
-                  <th className="px-5 py-3 font-semibold text-center">متحقق</th>
-                  <th className="px-5 py-3 font-semibold">التاريخ</th>
-                  <th className="px-5 py-3 font-semibold text-center">حذف</th>
+                <tr className="bg-stone-50 text-stone-500 text-[11px] uppercase tracking-wider border-b border-stone-200/70 select-none">
+                  {/* Bulk Select Checkbox */}
+                  <th className="px-4 py-3.5 w-10 text-center">
+                    <input 
+                      type="checkbox"
+                      checked={isAllPageSelected}
+                      onChange={toggleSelectAllPage}
+                      className="w-4 h-4 rounded text-stone-900 focus:ring-stone-500 border-stone-300 cursor-pointer align-middle"
+                      title="تحديد كل المعروض بالصفحة"
+                    />
+                  </th>
+                  <th className="px-4 py-3.5 font-bold">المراجع</th>
+                  <th className="px-4 py-3.5 font-bold">المنتج</th>
+                  <th className="px-4 py-3.5 font-bold">التقييم</th>
+                  <th className="px-4 py-3.5 font-bold hidden md:table-cell">العنوان والنص</th>
+                  <th className="px-4 py-3.5 font-bold text-center">التحقق</th>
+                  <th className="px-4 py-3.5 font-bold">التاريخ</th>
+                  <th className="px-4 py-3.5 font-bold text-center">حذف</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-50">
-                {filtered.map((review: any) => (
-                  <tr key={review.id} className={`hover:bg-stone-50/70 transition-colors ${deleting === review.id ? 'opacity-40' : ''}`}>
-                    {/* Reviewer */}
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-stone-700 to-stone-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                          {(review.author_name || '?')[0].toUpperCase()}
+              <tbody className="divide-y divide-stone-100">
+                {paginatedReviews.map((review: any) => {
+                  const isSelected = selectedIds.has(review.id);
+                  return (
+                    <tr 
+                      key={review.id} 
+                      className={`hover:bg-stone-50/70 transition-colors ${isSelected ? 'bg-amber-50/40' : ''} ${deleting === review.id ? 'opacity-40' : ''}`}
+                    >
+                      {/* Checkbox */}
+                      <td className="px-4 py-3.5 text-center">
+                        <input 
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectRow(review.id)}
+                          className="w-4 h-4 rounded text-stone-900 focus:ring-stone-500 border-stone-300 cursor-pointer align-middle"
+                        />
+                      </td>
+
+                      {/* Reviewer */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-stone-800 to-stone-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 shadow-2xs">
+                            {(review.author_name || '?')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-stone-900 text-xs">{review.author_name || 'Anonymous'}</p>
+                            {review.author_email && (
+                              <p className="text-[10px] text-stone-400 truncate max-w-[130px]" title={review.author_email}>
+                                {review.author_email}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-stone-900 text-xs">{review.author_name || 'Anonymous'}</p>
-                          {review.author_email && <p className="text-[10px] text-stone-400 truncate max-w-[120px]">{review.author_email}</p>}
-                        </div>
-                      </div>
-                    </td>
-                    {/* Product */}
-                    <td className="px-5 py-4">
-                      <p className="text-xs font-medium text-stone-700 max-w-[160px] truncate">{getProductName(review.product)}</p>
-                      {review.product?.sku && <p className="text-[10px] text-stone-400 font-mono">{review.product.sku}</p>}
-                    </td>
-                    {/* Stars */}
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-0.5">{renderStars(review.rating)}</div>
-                      <span className="text-[10px] text-stone-400 mt-0.5 block">{review.rating}/5</span>
-                    </td>
-                    {/* Title + body */}
-                    <td className="px-5 py-4 hidden md:table-cell max-w-[240px]">
-                      {review.title && <p className="text-xs font-bold text-stone-800 mb-0.5 truncate">{review.title}</p>}
-                      <p className="text-[11px] text-stone-500 line-clamp-2 leading-relaxed">{review.body}</p>
-                    </td>
-                    {/* Verified */}
-                    <td className="px-5 py-4 text-center">
-                      {review.verified_purchase
-                        ? <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">✓ Verified</span>
-                        : <span className="text-[10px] text-stone-300 font-medium">—</span>}
-                    </td>
-                    {/* Date */}
-                    <td className="px-5 py-4">
-                      <p className="text-xs text-stone-500">
-                        {new Date(review.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </p>
-                    </td>
-                    {/* Delete */}
-                    <td className="px-5 py-4 text-center">
-                      <button
-                        onClick={() => handleDelete(review.id)}
-                        disabled={deleting === review.id}
-                        className="p-2 rounded-lg bg-red-50 text-[#d40026] hover:bg-red-100 transition disabled:opacity-50 cursor-pointer"
-                        title="حذف المراجعة"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+
+                      {/* Product */}
+                      <td className="px-4 py-3.5">
+                        <p className="text-xs font-semibold text-stone-800 max-w-[170px] truncate" title={getProductName(review.product)}>
+                          {getProductName(review.product)}
+                        </p>
+                        {review.product?.sku && (
+                          <span className="text-[10px] text-stone-400 font-mono bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200/50 mt-0.5 inline-block">
+                            {review.product.sku}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Stars */}
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-0.5">{renderStars(review.rating)}</div>
+                        <span className="text-[10px] font-bold text-stone-600 mt-0.5 block">{review.rating} من 5</span>
+                      </td>
+
+                      {/* Title + body */}
+                      <td className="px-4 py-3.5 hidden md:table-cell max-w-[260px]">
+                        {review.title && (
+                          <p className="text-xs font-bold text-stone-900 mb-0.5 truncate" title={review.title}>
+                            {review.title}
+                          </p>
+                        )}
+                        <p className="text-[11px] text-stone-600 line-clamp-2 leading-relaxed" title={review.body}>
+                          {review.body}
+                        </p>
+                      </td>
+
+                      {/* Verified */}
+                      <td className="px-4 py-3.5 text-center">
+                        {review.verified_purchase ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+                            ✓ Verified
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-stone-300 font-medium">—</span>
+                        )}
+                      </td>
+
+                      {/* Date */}
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <p className="text-xs text-stone-500 font-medium">
+                          {new Date(review.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                      </td>
+
+                      {/* Delete */}
+                      <td className="px-4 py-3.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(review.id)}
+                          disabled={deleting === review.id}
+                          className="p-1.5 rounded-lg bg-red-50 text-[#d40026] hover:bg-red-100 transition disabled:opacity-50 cursor-pointer"
+                          title="حذف هذه المراجعة"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Bottom Pagination Bar */}
+        {!loading && filtered.length > 0 && (
+          <div className="px-5 py-3.5 bg-stone-50/70 border-t border-stone-200/70 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="text-stone-500">
+              {isAll ? (
+                <span>عرض جميع الـ <span className="font-bold text-stone-800">{totalItems}</span> مراجعة</span>
+              ) : (
+                <span>
+                  عرض <span className="font-bold text-stone-800">{fromIndex}–{toIndex}</span> من أصل <span className="font-bold text-stone-800">{totalItems}</span> مراجعة
+                  {totalPages > 1 && <span className="text-stone-400 mr-1.5">(صفحة {safeCurrentPage} من {totalPages})</span>}
+                </span>
+              )}
+            </div>
+
+            {!isAll && totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                {/* First Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safeCurrentPage === 1}
+                  className="p-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  title="الصفحة الأولى"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+
+                {/* Prev */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={safeCurrentPage === 1}
+                  className="p-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  title="الصفحة السابقة"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                {/* Numbered buttons */}
+                {getPageNumbers().map((p, idx) => {
+                  if (p === '...') {
+                    return (
+                      <span key={`dot-${idx}`} className="px-1.5 text-stone-400 select-none">
+                        …
+                      </span>
+                    );
+                  }
+                  const isCurrent = p === safeCurrentPage;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCurrentPage(p as number)}
+                      className={`min-w-8 h-8 px-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        isCurrent
+                          ? 'bg-stone-900 text-white shadow-xs'
+                          : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+
+                {/* Next */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  className="p-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  title="الصفحة التالية"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Last Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={safeCurrentPage === totalPages}
+                  className="p-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  title="الصفحة الأخيرة"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

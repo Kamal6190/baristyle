@@ -1,8 +1,153 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../prismaClient';
-import { optionalAuth, AuthRequest } from '../middleware/auth';
+import { optionalAuth, AuthRequest, requireRole } from '../middleware/auth';
 
 const router = Router();
+
+// GET /api/reviews — get ALL reviews (admin only)
+router.get('/', optionalAuth, requireRole(['SUPER_ADMIN']), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reviews = await (prisma as any).review.findMany({
+      orderBy: { created_at: 'desc' },
+      include: {
+        product: { select: { id: true, translations: true, sku: true } },
+      }
+    });
+    res.json(reviews);
+  } catch (error) {
+    console.error('Error fetching all reviews:', error);
+    res.status(500).json({ message: 'Error fetching reviews', error: String(error) });
+  }
+});
+
+// DELETE /api/reviews/:id — delete a review by ID (admin only)
+router.delete('/:id', optionalAuth, requireRole(['SUPER_ADMIN']), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    await (prisma as any).review.delete({ where: { id } });
+    res.json({ message: 'Review deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting review', error });
+  }
+});
+
+// POST /api/reviews/bulk-delete — delete multiple reviews (admin only)
+router.post('/bulk-delete', optionalAuth, requireRole(['SUPER_ADMIN']), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ message: 'Array of review IDs is required' });
+      return;
+    }
+    await (prisma as any).review.deleteMany({
+      where: { id: { in: ids } }
+    });
+    res.json({ message: `Successfully deleted ${ids.length} reviews` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting reviews', error: String(error) });
+  }
+});
+
+// POST /api/reviews — create a review manually (admin only)
+router.post('/', optionalAuth, requireRole(['SUPER_ADMIN']), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { product_id, author_name, author_email, rating, title, body, verified_purchase, created_at } = req.body;
+
+    if (!product_id || !author_name || !rating || !body) {
+      res.status(400).json({ message: 'Product ID, author name, rating, and review text are required.' });
+      return;
+    }
+
+    const ratingInt = parseInt(rating);
+    if (isNaN(ratingInt) || ratingInt < 1 || ratingInt > 5) {
+      res.status(400).json({ message: 'Rating must be between 1 and 5.' });
+      return;
+    }
+
+    // Verify product exists
+    const product = await prisma.product.findUnique({ where: { id: product_id } });
+    if (!product) {
+      res.status(404).json({ message: 'Product not found.' });
+      return;
+    }
+
+    const review = await (prisma as any).review.create({
+      data: {
+        product_id,
+        author_name,
+        author_email: author_email || null,
+        rating: ratingInt,
+        title: title || null,
+        body,
+        verified_purchase: !!verified_purchase,
+        is_approved: true,
+        created_at: created_at ? new Date(created_at) : new Date(),
+      },
+      include: {
+        product: { select: { id: true, translations: true, sku: true } }
+      }
+    });
+
+    res.status(201).json({ message: 'Review created successfully!', review });
+  } catch (error) {
+    console.error('Error creating review:', error);
+    res.status(500).json({ message: 'Error creating review', error: String(error) });
+  }
+});
+
+// POST /api/reviews/bulk — create multiple reviews manually (admin only)
+router.post('/bulk', optionalAuth, requireRole(['SUPER_ADMIN']), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { product_id, reviews } = req.body;
+
+    if (!product_id || !Array.isArray(reviews) || reviews.length === 0) {
+      res.status(400).json({ message: 'Product ID and reviews list are required.' });
+      return;
+    }
+
+    // Verify product exists
+    const product = await prisma.product.findUnique({ where: { id: product_id } });
+    if (!product) {
+      res.status(404).json({ message: 'Product not found.' });
+      return;
+    }
+
+    const createdReviews = [];
+    for (const r of reviews) {
+      const { author_name, rating, body, verified_purchase, created_at } = r;
+      if (!author_name || !body) {
+        continue;
+      }
+      const ratingInt = parseInt(rating) || 5;
+
+      const review = await (prisma as any).review.create({
+        data: {
+          product_id,
+          author_name,
+          author_email: null,
+          rating: ratingInt,
+          title: null,
+          body,
+          verified_purchase: verified_purchase !== undefined ? !!verified_purchase : true,
+          is_approved: true,
+          created_at: created_at ? new Date(created_at) : new Date(),
+        },
+        include: {
+          product: { select: { id: true, translations: true, sku: true } }
+        }
+      });
+      createdReviews.push(review);
+    }
+
+    res.status(201).json({ message: `Successfully created ${createdReviews.length} reviews`, reviews: createdReviews });
+  } catch (error) {
+    console.error('Error creating bulk reviews:', error);
+    res.status(500).json({ message: 'Error creating bulk reviews', error: String(error) });
+  }
+});
+
+
+
 
 // GET /api/reviews/:productId — get approved reviews for a product
 router.get('/:productId', async (req: Request, res: Response): Promise<void> => {
@@ -138,12 +283,166 @@ router.post('/seed/:productId', async (req: Request, res: Response): Promise<voi
     }
 
     const fakeReviews = [
-      { author_name: 'Emma K.', rating: 5, title: 'Absolutely stunning!', body: 'This fragrance is truly one of a kind. The opening is incredibly fresh, and as it dries down it reveals the most beautiful warm base. I get compliments every time I wear it. Will definitely be repurchasing!', verified_purchase: true, days_ago: 45 },
-      { author_name: 'Thomas B.', rating: 5, title: 'My new signature scent', body: 'I have been searching for my perfect fragrance for years and I think I finally found it. The longevity is impressive — still noticeable after 10 hours. The sillage is perfect, not too loud but definitely present.', verified_purchase: true, days_ago: 38 },
-      { author_name: 'Sara M.', rating: 4, title: 'Sophisticated and unique', body: 'Very beautiful and complex fragrance. The notes blend seamlessly together. I give 4 stars only because the price is a bit steep, but the quality definitely justifies it. Great packaging too!', verified_purchase: true, days_ago: 62 },
-      { author_name: 'Lukas H.', rating: 5, title: 'Perfect for evenings', body: 'Bought this as a gift for my partner and she absolutely loves it. The bottle is elegant and the scent is warm, sensual and long-lasting. This is luxury fragrance at its finest.', verified_purchase: false, days_ago: 20 },
-      { author_name: 'Julia R.', rating: 4, title: 'Worth every cent', body: 'After reading many reviews I decided to order. Not disappointed at all! The scent is rich and smooth. It feels premium from the first spray. The only downside is I wish the bottle was a bit bigger!', verified_purchase: true, days_ago: 15 },
-      { author_name: 'Ahmed F.', rating: 5, title: 'Exceptional quality', body: 'I have tried many luxury fragrances but this one stands out for its depth and character. The base notes especially are incredibly well crafted. Fast shipping and great packaging from BariStyle!', verified_purchase: true, days_ago: 30 },
+      {
+        author_name: 'Lukas M.',
+        rating: 5,
+        title: 'Stylisch und bequem',
+        body: 'Die Sonnenbrille sitzt perfekt und ist auch nach mehreren Stunden sehr angenehm zu tragen. Hochwertige Verarbeitung und modernes Design.',
+        verified_purchase: true,
+        days_ago: 6
+      },
+      {
+        author_name: 'Emma K.',
+        rating: 5,
+        title: 'Excellentes lunettes',
+        body: 'Très élégantes et confortables. Les verres offrent une excellente protection contre le soleil et la qualité est au rendez-vous.',
+        verified_purchase: true,
+        days_ago: 11
+      },
+      {
+        author_name: 'Matteo R.',
+        rating: 5,
+        title: 'Qualità Nike',
+        body: 'Occhiali leggeri, molto comodi e con un design sportivo. Perfetti sia per guidare che per le passeggiate estive.',
+        verified_purchase: true,
+        days_ago: 15
+      },
+      {
+        author_name: 'Noah V.',
+        rating: 5,
+        title: 'Top zonnebril',
+        body: 'Zit erg comfortabel en ziet er premium uit. Goede UV-bescherming en ideaal voor dagelijks gebruik.',
+        verified_purchase: true,
+        days_ago: 18
+      },
+      {
+        author_name: 'Jonas B.',
+        rating: 4,
+        title: 'Sehr zufrieden',
+        body: 'Leichtes Gestell, gute Passform und klare Sicht. Die Brille wirkt hochwertig und sieht sportlich aus.',
+        verified_purchase: true,
+        days_ago: 22
+      },
+      {
+        author_name: 'Claire D.',
+        rating: 5,
+        title: 'Parfaites pour l’été',
+        body: 'Je les porte presque tous les jours. Elles sont légères, élégantes et protègent très bien les yeux.',
+        verified_purchase: true,
+        days_ago: 27
+      },
+      {
+        author_name: 'Giulia F.',
+        rating: 5,
+        title: 'Bellissimo design',
+        body: 'Montatura resistente e molto elegante. Ottima qualità delle lenti e vestibilità perfetta.',
+        verified_purchase: true,
+        days_ago: 33
+      },
+      {
+        author_name: 'Sven J.',
+        rating: 5,
+        title: 'Goede kwaliteit',
+        body: 'Mooie afwerking en fijne pasvorm. De glazen verminderen schittering tijdens het autorijden.',
+        verified_purchase: true,
+        days_ago: 36
+      },
+      {
+        author_name: 'Felix H.',
+        rating: 5,
+        title: 'Perfekt für den Alltag',
+        body: 'Ob beim Autofahren oder Spazierengehen – die Brille ist angenehm leicht und bietet eine tolle Sicht.',
+        verified_purchase: true,
+        days_ago: 41
+      },
+      {
+        author_name: 'Camille P.',
+        rating: 4,
+        title: 'Très confortable',
+        body: 'Bonne qualité de fabrication et look moderne. Je suis très satisfaite de cet achat.',
+        verified_purchase: true,
+        days_ago: 46
+      },
+      {
+        author_name: 'Marco S.',
+        rating: 5,
+        title: 'Perfetti per lo sport',
+        body: 'Li uso anche durante le passeggiate e sono molto stabili. Ottima protezione dal sole.',
+        verified_purchase: true,
+        days_ago: 52
+      },
+      {
+        author_name: 'Daan W.',
+        rating: 5,
+        title: 'Echt een aanrader',
+        body: 'Lichtgewicht en comfortabel. De glazen zijn helder en beschermen uitstekend tegen fel zonlicht.',
+        verified_purchase: true,
+        days_ago: 58
+      },
+      {
+        author_name: 'Leon S.',
+        rating: 5,
+        title: 'Hochwertige Sonnenbrille',
+        body: 'Die Verarbeitung überzeugt auf ganzer Linie. Modernes Design und angenehmer Sitz.',
+        verified_purchase: true,
+        days_ago: 64
+      },
+      {
+        author_name: 'Julien T.',
+        rating: 5,
+        title: 'Très bonne qualité',
+        body: 'Les matériaux semblent robustes et les lunettes sont très agréables à porter toute la journée.',
+        verified_purchase: true,
+        days_ago: 69
+      },
+      {
+        author_name: 'Francesca G.',
+        rating: 4,
+        title: 'Molto soddisfatta',
+        body: 'Design elegante e lenti di qualità. Ottimo rapporto qualità-prezzo.',
+        verified_purchase: true,
+        days_ago: 74
+      },
+      {
+        author_name: 'Bram N.',
+        rating: 5,
+        title: 'Perfecte pasvorm',
+        body: 'Past uitstekend en voelt stevig aan. Ideaal voor zonnige dagen en autoritten.',
+        verified_purchase: true,
+        days_ago: 81
+      },
+      {
+        author_name: 'Tim O.',
+        rating: 5,
+        title: 'Klare Kaufempfehlung',
+        body: 'Stylisch, leicht und angenehm zu tragen. Die Gläser bieten eine hervorragende Sicht bei Sonnenschein.',
+        verified_purchase: true,
+        days_ago: 87
+      },
+      {
+        author_name: 'Amélie R.',
+        rating: 5,
+        title: 'Élégantes et pratiques',
+        body: 'Très belles finitions, protection solaire efficace et design intemporel. Je recommande.',
+        verified_purchase: true,
+        days_ago: 92
+      },
+      {
+        author_name: 'Davide C.',
+        rating: 5,
+        title: 'Ottima scelta',
+        body: 'Occhiali molto leggeri con un look moderno. Li ricomprerei senza esitazione.',
+        verified_purchase: true,
+        days_ago: 98
+      },
+      {
+        author_name: 'Jeroen P.',
+        rating: 4,
+        title: 'Mooie Nike bril',
+        body: 'Goede kwaliteit, zit comfortabel en ziet er stijlvol uit. Zeker tevreden met mijn aankoop.',
+        verified_purchase: true,
+        days_ago: 105
+      }
     ];
 
     const created = [];

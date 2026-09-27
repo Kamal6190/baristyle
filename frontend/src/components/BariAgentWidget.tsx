@@ -5,18 +5,24 @@ import { usePathname } from "next/navigation";
 
 export default function BariAgentWidget() {
   const pathname = usePathname();
-  const isPurchaseFlow = pathname?.startsWith("/checkout") || pathname === "/cart" || pathname === "/success";
+  // Only display the AI chat assistant on the homepage as requested by user
+  const isHomepage = pathname === "/" || pathname === "";
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // Dynamically toggle visibility based on current route
-    const wrap = document.querySelector(".bari-widget-wrap") as HTMLElement;
-    if (wrap) {
-      wrap.style.display = isPurchaseFlow ? "none" : "block";
+    if (typeof document !== "undefined") {
+      if (isHomepage) {
+        document.body.classList.add("is-homepage");
+      } else {
+        document.body.classList.remove("is-homepage");
+      }
     }
 
-    if (isPurchaseFlow) return;
+    const wrap = document.querySelector(".bari-widget-wrap") as HTMLElement;
+    if (wrap) {
+      wrap.style.display = isHomepage ? "block" : "none";
+    }
+
+    if (!isHomepage) return;
 
     if (document.getElementById("bari-agent-script")) return;
 
@@ -33,7 +39,7 @@ export default function BariAgentWidget() {
     script.async = true;
 
     document.body.appendChild(script);
-  }, [pathname, isPurchaseFlow]);
+  }, [pathname, isHomepage]);
 
   return null;
 }

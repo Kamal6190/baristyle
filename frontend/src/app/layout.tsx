@@ -7,7 +7,6 @@ import Script from "next/script";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import CookieBanner from "../components/CookieBanner";
-import LivePurchaseNotification from "../components/LivePurchaseNotification";
 import Buy2Get1PopupModal from "../components/Buy2Get1PopupModal";
 import GoogleAutoTranslate from "../components/GoogleAutoTranslate";
 import AxiosInterceptor from "../components/AxiosInterceptor";
@@ -143,7 +142,6 @@ export default function RootLayout({
         </WishlistProvider>
         
         <CookieBanner />
-        <LivePurchaseNotification />
         <Buy2Get1PopupModal />
         <BariAgentWidget />
       </body>

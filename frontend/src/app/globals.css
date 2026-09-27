@@ -145,3 +145,24 @@ div[class*="proactive-bubble"] {
   z-index: 45 !important;
 }
 
+/* Restrict Bari AI Agent strictly to Homepage only */
+body:not(.is-homepage) .bari-widget-wrap,
+body:not(.is-homepage) .bari-widget-trigger,
+body:not(.is-homepage) .bari-chat-window {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Enhanced luxury design for Homepage AI button */
+body.is-homepage .bari-widget-trigger {
+  box-shadow: 0 10px 25px -4px rgba(212, 0, 38, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.25) !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease !important;
+}
+
+body.is-homepage .bari-widget-trigger:hover {
+  transform: scale(1.08) !important;
+  box-shadow: 0 14px 30px -4px rgba(212, 0, 38, 0.55) !important;
+}
+
